@@ -8,10 +8,15 @@ while windowshopping around recently for solutions to the infernal question of s
 at best, one can't do any worse. Enter me, I suppose.
 
 # tech stack
-currently, infisical-rs runs on these major depenedencies to keep things light:
+currently, infisical-rs runs on these major dependencies to keep things light:
 - reqwest,
 - serde/serde-json
 - secrecy (to ensure on-drop data/struct invalidation and generally limit access to sensitive client data)
+
+future planned crate features include:
+- \[logging\] : (and the ability to control the verboseness and chirpiness of it)
+- \[blocking\] : forcing the lib to use request::Blocking::client instead of the default unblocking client
+
 # a multitude of things to keep in mind here:  
 - this is _very_ early days for this API (<1 month in), and by extension is:
   - in **_very_** early alpha, and will be for quite a while
@@ -27,8 +32,8 @@ The plan is to:
 - continue building out the groundwork for the various return structs of the API,
 - finish out the Universal Authorization and Secrets API endpoints first,
 - move on to the other authorization types as much as my knowledge allows (which considering this is my first time having to deal with GCP/AWS/Azure, this may be a bit of stretch out the gate)
-  - I would be entirely out of my knowledge check with Kubernetes Auth, and would either have to figure out k8s on my own time, or rely on community contributions.
-- implement endpoints such as `/folder`, `/projects`, etc.
+  - I would be entirely out of my knowledge bounds with Kubernetes Auth, and would either have to figure out k8s on my own time, or rely on community contributions.
+- implement endpoints such as `/folder`, `/projects`, etc, since they overall seem to be less work to implement.
 
 # another note
 // fundamentally, there is nothing crazy going on in this library
