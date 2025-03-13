@@ -17,7 +17,10 @@ currently, infisical-rs runs on these major depenedencies to keep things light:
   - in **_very_** early alpha, and will be for quite a while
   - pretty much entirely unstable and unfit for production. Expect consistent breaking changes for the next long while.
 - this is my first time having to roll out an API (and for that matter, my first on a lot of things such as robust application and API security)
-- this is currently a very naive implementation of a few reqwest::Client calls and subsequent de/serialization of Rust structures and error handling. Feel free to yell at the clouds (or me, for that matter) in [github discussions](https://github.com/ceilptr/infisical-rs/discussions) if this takes off pasy anything ground-level.
+- this is currently a very naive implementation of a few reqwest::Client calls and subsequent de/serialization of Rust structures and error handling. Feel free to yell at the clouds (or me, for that matter) in [github discussions](https://github.com/ceilptr/infisical-rs/discussions) if this takes off past anything ground-level.
+- for the time-being the reqwest client type will be async, with blocking likely to come later down the line:
+  - I'm currently assuming it would be more useful to call async reqwest and use something like block_on in sync/threaded code, rather than the other way around
+  - the blocking code would be more or less a duplicate of the async functionality, so we might as well iron one out fully first
 
 # the immediate future
 The plan is to: 
@@ -28,4 +31,4 @@ The plan is to:
 - implement endpoints such as `/folder`, `/projects`, etc.
 
 # another note
-fundamentally, there is nothing crazy going on in this library
+// fundamentally, there is nothing crazy going on in this library
