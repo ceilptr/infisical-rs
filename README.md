@@ -13,7 +13,7 @@ currently, infisical-rs runs on these major dependencies to keep things light:
 - serde/serde-json
 - secrecy (to ensure on-drop data/struct invalidation and generally limit access to sensitive client data)
 
-future planned crate features include:
+tentatively planned crate features include:
 - \[logging\] : (and the ability to control the verboseness and chirpiness of it)
 - \[blocking\] : forcing the lib to use request::Blocking::client instead of the default unblocking client
 
@@ -21,8 +21,8 @@ future planned crate features include:
 - this is _very_ early days for this API (<1 month in), and by extension is:
   - in **_very_** early alpha, and will be for quite a while
   - pretty much entirely unstable and unfit for production. Expect consistent breaking changes for the next long while.
-- this is my first time having to roll out an API (and for that matter, my first on a lot of things such as robust application and API security)
-- this is currently a very naive implementation of a few reqwest::Client calls and subsequent de/serialization of Rust structures and error handling. Feel free to yell at the clouds (or me, for that matter) in [github discussions](https://github.com/ceilptr/infisical-rs/discussions) if this takes off past anything ground-level.
+- this is my first time rolling out an API binding to this degree (and for that matter, my first on a lot of things such as robust application and API security)
+- this is currently a very naive implementation consisting of a few reqwest::Client calls and subsequent de/serialization of Rust structures and error handling. Feel free to yell at the clouds (or me, for that matter) in [github discussions](https://github.com/ceilptr/infisical-rs/discussions) if this takes off past anything ground-level for improvements and suggestions.
 - for the time-being the reqwest client type will be async, with blocking likely to come later down the line:
   - I'm currently assuming it would be more useful to call async reqwest and use something like block_on in sync/threaded code, rather than the other way around
   - the blocking code would be more or less a duplicate of the async functionality, so we might as well iron one out fully first
@@ -35,5 +35,5 @@ The plan is to:
   - I would be entirely out of my knowledge bounds with Kubernetes Auth, and would either have to figure out k8s on my own time, or rely on community contributions.
 - implement endpoints such as `/folder`, `/projects`, etc, since they overall seem to be less work to implement.
 
-# another note
-// fundamentally, there is nothing crazy going on in this library
+# additional notes
+
