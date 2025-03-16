@@ -1,7 +1,7 @@
 # infisical-rs (tentative until I can find a better non-conflicting crate name)
 # problem
 while windowshopping around recently for solutions to the infernal question of secrets management, i began looking into Infisical as a simpler alternative to trying to set up something like Hashicorp Vault. All this is fine and well except:
-- the Infisical team currently does not have a Rustlang binding for their API (apparently this is currently being worked on internally, but the last mention I could find of this was a random Infisical forum post from 2023 or so)
+- the Infisical team currently does not have a publicly available Rustlang binding for their API (apparently this is currently being worked on internally, but the last mention I could find of this was a random Infisical forum post from 2023 or so)
 - The sole result on crates.io was updated >2 years ago and has no support for the current service account infrastructure of Infisical (along with another semi-recently that only allows for retrieval of client secrets)
 - searching across Github is much of the same, with the seemingly other sole Github repo being an enpty initial commit.
 
