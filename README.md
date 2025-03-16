@@ -36,4 +36,5 @@ The plan is to:
 - implement endpoints such as `/folder`, `/projects`, etc, since they overall seem to be less work to implement.
 
 # additional notes
+- depending on how far my Google-Fu goes, implementation tracking will (most likely) be handled over on [this taiga project repo](https://tree.taiga.io/project/ceilptr-infisical-rs/timeline) or on Github Projects.
 
