@@ -22,6 +22,7 @@ tentatively planned crate features include:
   - in **_very_** early alpha, and will be for quite a while
   - pretty much entirely unstable and unfit for production. Expect consistent breaking changes for the next long while.
 - this is my first time rolling out an API binding to this degree (and for that matter, my first on a lot of things such as robust application and API security)
+- this is also my first time officially rolling out a Rust library, and leans towards educational rather than production-practical (for the moment, who knows what the future holds!)
 - this is currently a very naive implementation consisting of a few reqwest::Client calls and subsequent de/serialization of Rust structures and error handling. Feel free to yell at the clouds (or me, for that matter) in [github discussions](https://github.com/ceilptr/infisical-rs/discussions) if this takes off past anything ground-level for improvements and suggestions.
 - for the time-being the reqwest client type will be async, with blocking likely to come later down the line:
   - I'm currently assuming it would be more useful to call async reqwest and use something like block_on in sync/threaded code, rather than the other way around
