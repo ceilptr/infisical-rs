@@ -19,14 +19,9 @@ use utils::{
 };
 
 use crate::infisical::utils::{
-    api_response::ApiResponseEnum, app_config::AppConfig,
-    reqwest_utils::string_formatting::reqwest_bytes_to_unescaped_string,
+    api_utils::{ApiResponseEnum, AppConfig},
+    reqwest_utils::reqwest_bytes_to_unescaped_string,
 };
-
-// use crate::util::{
-//     configs::AppConfig, infisical::api_utils::api_things::ApiResponseEnum,
-//     reqwest_utils::string_formatting::reqwest_bytes_to_unescaped_string,
-// };
 
 pub mod error_handling;
 pub mod utils;

@@ -1,3 +1,2 @@
-pub mod api_response;
-pub mod app_config;
+pub mod api_utils;
 pub mod reqwest_utils;

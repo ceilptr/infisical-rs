@@ -1,31 +1,27 @@
-pub mod string_formatting {
-    use unescaper::unescape;
+use reqwest::Response;
+use unescaper::unescape;
 
-    ///
-    /// there has to be a cleaner way to do this but this will work for now
-    pub fn reqwest_bytes_to_unescaped_string(
-        bytes: &[u8],
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let unescaped = unescape(&bytes.escape_ascii().to_string())?;
+use super::api_utils::ApiResponseEnum;
 
-        let filtered_bytes = unescaped.replace(",", "\n");
+pub fn reqwest_bytes_to_unescaped_string(
+    bytes: &[u8],
+) -> Result<String, Box<dyn std::error::Error>> {
+    let unescaped = unescape(&bytes.escape_ascii().to_string())?;
 
-        Ok(filtered_bytes)
-    }
+    let filtered_bytes = unescaped.replace(",", "\n");
+
+    Ok(filtered_bytes)
+}
+
+pub async fn reqwest_error_to_struct(
+    response: Response,
+    // ) -> Result<impl ApiResponseTrait, Box<dyn std::error::Error>> {
+) -> Result<ApiResponseEnum, Box<dyn std::error::Error>> {
+    let f = response.json::<ApiResponseEnum>().await?;
+    Ok(f)
 }
 
 pub mod reqwest_error_handling {
-    use reqwest::{Response, StatusCode};
-
-    use crate::infisical::utils::api_response::ApiResponseEnum;
-
-    pub async fn reqwest_error_to_struct(
-        response: Response,
-        // ) -> Result<impl ApiResponseTrait, Box<dyn std::error::Error>> {
-    ) -> Result<ApiResponseEnum, Box<dyn std::error::Error>> {
-        let f = response.json::<ApiResponseEnum>().await?;
-        Ok(f)
-    }
 
     // pub async fn reqwest_error_to_struct2(
     //     response: Response,

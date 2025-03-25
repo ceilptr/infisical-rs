@@ -121,7 +121,7 @@ pub mod universal_auth_util_functions {
 
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-    use crate::infisical::utils::app_config::AppConfig;
+    use crate::infisical::utils::api_utils::AppConfig;
 
     pub fn construct_universal_auth_token_endpoint_url(
         app_config: &AppConfig,
