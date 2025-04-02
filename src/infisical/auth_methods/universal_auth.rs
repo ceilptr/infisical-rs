@@ -1,3 +1,5 @@
+/// Universal Authentication:
+///
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
@@ -19,8 +21,7 @@ use utils::{
 };
 
 use crate::infisical::utils::{
-    api_utils::{ApiResponseEnum, AppConfig},
-    reqwest_utils::reqwest_bytes_to_unescaped_string,
+    api_utils::ApiResponseEnum, reqwest_utils::reqwest_bytes_to_unescaped_string,
 };
 
 pub mod error_handling;
@@ -29,65 +30,79 @@ pub mod utils;
 // ---------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------
-/**
- * mainly used to login With a client_id and client_secret and retrieve a Universal Auth access token to do all the things
- */
+/// mainly used to login With a client_id and client_secret and retrieve a Universal Auth access token to do all the things
 impl UniversalAuthCredentials {
-    /// takes in a client id and secret, and returns a Universal Auth Access Token upon successful authorization
-    /// the resulting access token is then used as a mechanism for the rest of the universal auth library functionality
-    /// e.g.: get_secret, revoke_client_secret,
+    /// login():
+    /// API Reference: https://infisical.com/docs/api-reference/endpoints/universal-auth/login
+    ///
+    /// Takes in a client id and secret, and returns a Universal Auth Access Token upon successful authorization. \
+    /// The resulting access token is then used as a mechanism for the rest of the universal auth library functionality
+    /// e.g.: get_secret(), revoke_client_secret(), attach().
+    ///
+    /// Args:
+    /// * `host` - A string slice denoting the host url used to connect to Infisical (e.g.: https://us.infisical.com, http://localhost:8080, etc)
+    /// * `client` - A reqwest client used to send off the API request. Defaults to the non-blocking version unless the `reqwest_blocking` feature is enabled in compilation.
+    ///
+    /// Result:
+    ///
+    /// # Example
+    ///
+    /// ```
+    ///     let credentials = UniversalAuthCredentials {
+    ///         client_id: "",
+    ///         client_secret: "",
+    ///         identity_id: "",
+    ///         version: "",
+    ///     }
+    ///
+    ///     let access_token = credentials.login(host: "https://us.infisical.com", client: &reqwest_client).await?;
+    /// ```
+    ///
     pub async fn login(
-        // pub fn login(
         &self,
-        // host_url: &str,
-        app_config: &AppConfig,
-        // ) -> Result<UniversalAuthAccessToken, Box<dyn std::error::Error>> {
+        host: &str,
+        client: &reqwest::Client,
     ) -> Result<UniversalAuthAccessToken, Box<dyn std::error::Error>> {
-        let auth_login_url = format!(
-            // "{host_url}/api/{version}/auth/universal-auth/login",
-            "{}/api/{}/auth/universal-auth/login",
-            app_config.host, &self.version
-        );
+        let auth_login_url = format!("{}/api/{}/auth/universal-auth/login", host, &self.version);
 
         // much cleaner way of constructing reqwest headers and json data and...whatever else in the future
         let mut universal_auth_data_headers = HeaderMap::new();
         universal_auth_data_headers
             .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
+        // much cleaner way of constructing reqwest headers and json data and...whatever else in the future
         let mut universal_auth_data = HashMap::new();
 
         universal_auth_data.insert("clientId", &self.client_id);
         universal_auth_data.insert("clientSecret", &self.client_secret);
 
-        let response = app_config
-            .client
+        let response = client
             .post(&auth_login_url)
             .headers(universal_auth_data_headers)
             .json(&universal_auth_data)
             .send()
             .await?;
 
-        // for error handling
+        // for error handling / reporting
         let response_status = response.status().to_string();
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
         if response.status().ne(&StatusCode::OK) {
-            let s = response.json::<ApiResponseEnum>().await?;
+            let error_response = response.json::<ApiResponseEnum>().await?;
 
-            println!("hissssss: {}", s.to_string());
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
 
             return Err(Box::new(UniversalAuthError::UniversalAuthLoginError {
                 client_id: self.client_id.clone(),
                 client_identity_id: self.identity_id.clone(),
                 version: self.version.clone(),
                 response_status,
-                access_token_error: either::Right(s.to_string()),
+                access_token_error: either::Right(error_response.to_string()),
             }));
         }
 
         let bytes = response.bytes().await?;
-
-        println!("in login(): bytes_to_string: {:#?}", bytes);
 
         match serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes) {
             Ok(access_token) => Ok(UniversalAuthAccessToken {
@@ -112,17 +127,16 @@ impl UniversalAuthCredentials {
 // ---------------------------------------------------------------------------------------------------------
 
 /// Universal Auth Access Token functionality begins here
-///
 impl UniversalAuthAccessToken {
     // convenience functions to keep things below DRYer
     async fn construct_universal_auth_identity_endpoint_url(
         &self,
-        app_config: &AppConfig,
+        host: &str,
         identity_id: &str,
     ) -> String {
         format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}",
-            host_url = app_config.host,
+            host_url = host,
             version = &self.version,
             identity_id = identity_id
         )
@@ -130,7 +144,7 @@ impl UniversalAuthAccessToken {
 
     async fn construct_universal_client_secret_url(
         &self,
-        app_config: &AppConfig,
+        host: &str,
         identity_id: &str,
         client_secret_id: Option<&str>,
     ) -> String {
@@ -141,7 +155,7 @@ impl UniversalAuthAccessToken {
 
         format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}/client-secrets{client_secret_id}",
-            host_url = app_config.host,
+            host_url = host,
             version = &self.version,
             identity_id = identity_id,
             client_secret_id = is_client_secret
@@ -151,10 +165,10 @@ impl UniversalAuthAccessToken {
     // ***************************
     /// UniversalAuth::Attach
     /// app_config
-    // / identity_to_attach_to
     pub async fn attach(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_to_attach_to: &str,
         client_secret_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_trusted_ips: Option<&Vec<(String, IpAddr)>>,
@@ -162,8 +176,8 @@ impl UniversalAuthAccessToken {
         access_token_max_time_to_live: Option<u32>,
         access_token_num_uses_limit: Option<u128>,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
-        let endpoint_url = self
-            .construct_universal_auth_identity_endpoint_url(app_config, identity_to_attach_to)
+        let endpoint_url = &self
+            .construct_universal_auth_identity_endpoint_url(&host, identity_to_attach_to)
             .await;
 
         // construct request headers
@@ -219,8 +233,7 @@ impl UniversalAuthAccessToken {
         );
 
         // reqwest HTTP response
-        let response = app_config
-            .client
+        let response = client
             .post(endpoint_url)
             .bearer_auth(&self.access_token())
             .headers(headers)
@@ -247,7 +260,6 @@ impl UniversalAuthAccessToken {
         // attempt to deserialize HTTP response into a compatible Rust struct for...
         // rust things where you would need this
 
-        // match response.json::<IndentityUniversalAuth>().await {
         match serde_json::from_slice::<IndentityUniversalAuth>(&bytes) {
             Ok(uauth_identity_data) => {
                 println!(
@@ -264,20 +276,19 @@ impl UniversalAuthAccessToken {
     }
 
     pub async fn retrieve(
-        // pub fn retrieve(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_to_retrieve: &str,
         access_token: &UniversalAuthAccessToken,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
         let endpoint_url = format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}",
-            host_url = app_config.host,
+            host_url = host,
             version = &self.version,
             identity_id = identity_to_retrieve
         );
-        let response = app_config
-            .client
+        let response = client
             .get(endpoint_url)
             .bearer_auth(access_token.access_token())
             .send()
@@ -300,9 +311,9 @@ impl UniversalAuthAccessToken {
     // this is 99.99% the exaxt same code as attach() above outside of calling reqwest::patch instead of request::post,
     // so the majority of that function's logic carries over to here
     pub async fn update(
-        // pub fn update(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_to_update: &str,
         client_secret_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_trusted_ips: Option<&Vec<(String, IpAddr)>>,
@@ -311,7 +322,7 @@ impl UniversalAuthAccessToken {
         access_token_num_uses_limit: Option<u128>,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
         let endpoint_url = self
-            .construct_universal_auth_identity_endpoint_url(app_config, identity_to_update)
+            .construct_universal_auth_identity_endpoint_url(host, identity_to_update)
             .await;
 
         // construct request headers
@@ -367,8 +378,7 @@ impl UniversalAuthAccessToken {
         );
 
         // reqwest HTTP response
-        let response = app_config
-            .client
+        let response = client
             .patch(endpoint_url)
             .bearer_auth(&self.access_token())
             .headers(headers)
@@ -407,18 +417,17 @@ impl UniversalAuthAccessToken {
     }
 
     pub async fn revoke(
-        // pub fn revoke(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_to_revoke: &str,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
         let endpoint_url = self
-            .construct_universal_auth_identity_endpoint_url(app_config, identity_to_revoke)
+            .construct_universal_auth_identity_endpoint_url(&host, identity_to_revoke)
             .await;
 
         // let r;
-        let response = app_config
-            .client
+        let response = client
             .delete(endpoint_url)
             .bearer_auth(&self.access_token())
             .send()
@@ -452,7 +461,8 @@ impl UniversalAuthAccessToken {
 
     pub async fn create_client_secret(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_id: &str,
         client_secret_description: &str,
         client_secret_num_uses_limit: u64,
@@ -460,7 +470,7 @@ impl UniversalAuthAccessToken {
     ) -> Result<UniversalAuthClientSecret, Box<dyn std::error::Error>> {
         // ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         let endpoint_url = self
-            .construct_universal_client_secret_url(app_config, identity_id, None)
+            .construct_universal_client_secret_url(&host, identity_id, None)
             .await;
 
         // println!("create_client_secret url: {endpoint_url}");
@@ -471,7 +481,7 @@ impl UniversalAuthAccessToken {
         form_data.insert("numUsesLimit", client_secret_num_uses_limit);
         form_data.insert("ttl", client_secret_time_to_live);
 
-        // let build = reqwest::Client::new()
+        // let build = &reqwest::Client::new()
         //     .post(&endpoint_url)
         //     .bearer_auth(&self.access_token())
         //     .header(CONTENT_TYPE, "application/json")
@@ -483,9 +493,8 @@ impl UniversalAuthAccessToken {
 
         // // println!("create_client_secret")
 
-        // let response = app_config.client.execute(build).await?;
-        let response = app_config
-            .client
+        // let response = client.execute(build).await?;
+        let response = client
             .post(&endpoint_url)
             .bearer_auth(&self.access_token())
             .header(CONTENT_TYPE, "application/json")
@@ -515,14 +524,15 @@ impl UniversalAuthAccessToken {
 
     pub async fn revoke_client_secret(
         &self,
-        app_config: &AppConfig,
+        host: &str,
+        client: &reqwest::Client,
         identity_id: &str,
         client_secret_to_revoke: &str,
     ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         let endpoint_url = format!(
             "{}/revoke",
             self.construct_universal_client_secret_url(
-                &app_config,
+                &host,
                 identity_id,
                 Some(client_secret_to_revoke),
             )
@@ -531,8 +541,7 @@ impl UniversalAuthAccessToken {
 
         println!("revoke_client_secret: {endpoint_url}");
 
-        let response = app_config
-            .client
+        let response = client
             .post(&endpoint_url)
             .bearer_auth(&self.access_token())
             .send()
@@ -547,7 +556,34 @@ impl UniversalAuthAccessToken {
         }
     }
 
-    // todo!()
+    pub async fn get_client_secret_by_id(
+        &self,
+        host: &str,
+        client: &reqwest::Client,
+        identity_id: &str,
+        client_secret_id: &str,
+    ) -> Result<UniversalAuthClientSecretData, Box<dyn std::error::Error>> {
+        let endpoint_url = format!(
+            "{}/revoke",
+            self.construct_universal_client_secret_url(&host, identity_id, Some(client_secret_id),)
+                .await
+        );
+
+        let response = client
+            .get(&endpoint_url)
+            .bearer_auth(self.access_token())
+            .send()
+            .await?;
+
+        let bytes = response.bytes().await?;
+        println!("get_client_secret_by_id bytes: {bytes:#?}");
+
+        match serde_json::from_slice::<UniversalAuthClientSecretData>(&bytes) {
+            Ok(client_secret) => Ok(client_secret),
+            Err(e) => Err(Box::new(e)),
+        }
+        // todo!()
+    }
 }
 // ---------------------------------------------------------------------------------------------------------
 // impl UAuthSecrecyStruct

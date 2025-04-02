@@ -3,7 +3,28 @@ use std::net::IpAddr;
 use secrecy::{SecretBox, SecretString};
 use serde::{Deserialize, Serialize};
 
-// used as Universal Auth login credentials for Infisical
+/// This is, for all intents and purposes, your "username" and "password" for the Universal Auth authentcation method
+/// in Infisical, and your entrypoint to accessing the rest of this module's functionality.
+///
+/// client_id: Your project identity's client id
+/// client_secret: Your project identity's client secret
+/// identity_id: Your project identity's id
+/// version: the current Universal Auth Endpoint API version being used. Currently at v1.
+///
+/// # Example:
+/// ```
+///     let credentials = UniversalAuthCredentials {
+///         client_id: ""
+///         client_secret: ""
+///         identity_id: ""
+///         version: "v1"
+///     }
+/// ```
+///
+/// The general workflow is as follows:
+/// 1) create an identity in your Infisical project with the necessary permissions
+/// 2) create a client ID and client secret for said identity
+/// 3)
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub struct UniversalAuthCredentials {
     pub client_id: String,
@@ -22,6 +43,27 @@ pub struct UniversalAuthAccessTokenData {
     pub token_type: String,
 }
 
+/// UniversalAuthAccessToken
+///
+/// The struct returned from a successful login() call. The resulting module functionality such as get_secret() or attach()
+/// requires a valid access token to authenticate with Infisical. Said methods would be invoked as e.g., access_token.get_secret()
+///
+///
+/// - data: `SecretBox<UniversalAuthAccessTokenData>`
+///     - contains the actual access token data, mainly:
+///         - access_token: String,
+///         - access_token_max_ttl: u64,
+///         - expires_in: u64,
+///         - token_type: String,
+/// - version:  version of the Universal Auth Endpoint API being used for this access token. Mainly carried over from the previous
+///             UniversalAuthCredentials struct you'd have created previously.
+///
+/// Technically, any access in the secrecy-wrapped data field first needs to be "unsealed" by calling expose_secret (e.g.: user_token.data.expose_secret().access_token),
+/// and this method of accessing said secrets is obviously available if need be.
+/// Multiple convenience functions are available to access a given secret field, however, and are named directly after the field itself.
+/// So user_token.access_token() is equivalent to calling user_token.data.expose_secret().access_token.
+///
+/// # Example
 #[derive(Serialize, Deserialize)]
 pub struct UniversalAuthAccessToken {
     // #[serde(flatten)]
@@ -121,19 +163,18 @@ pub mod universal_auth_util_functions {
 
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-    use crate::infisical::utils::api_utils::AppConfig;
-
     pub fn construct_universal_auth_token_endpoint_url(
-        app_config: &AppConfig,
+        // app_config: &AppConfig,
+        host: &str,
         version: &str,
         endpoint_action: &str,
-    ) {
-        let endpoint_url = format!(
+    ) -> String {
+        format!(
             "{host_url}/api/{version}/auth/token/{token_endpoint_action}",
-            host_url = app_config.host,
+            host_url = host,
             version = &version,
             token_endpoint_action = endpoint_action
-        );
+        )
     }
     // ***************************
     /**
