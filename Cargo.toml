@@ -18,3 +18,8 @@ unescaper = "0.1.5"
 dotenvy = "0.15.7"
 
 [features]
+logging_verbose = []
+logging_quiet = []
+logging_silent = []
+
+reqwest_blocking_client = []

@@ -20,4 +20,4 @@ target/
 *.conf
 
 
-src/main/rs
+**/main.rs

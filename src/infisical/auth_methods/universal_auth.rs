@@ -30,9 +30,12 @@ pub mod utils;
 
 // ---------------------------------------------------------------------------------------------------------
 /**
- * mainly used to login With a client_id and client_secret and retrieve a Universal Auth access token to do things
+ * mainly used to login With a client_id and client_secret and retrieve a Universal Auth access token to do all the things
  */
 impl UniversalAuthCredentials {
+    /// takes in a client id and secret, and returns a Universal Auth Access Token upon successful authorization
+    /// the resulting access token is then used as a mechanism for the rest of the universal auth library functionality
+    /// e.g.: get_secret, revoke_client_secret,
     pub async fn login(
         // pub fn login(
         &self,
@@ -84,14 +87,9 @@ impl UniversalAuthCredentials {
 
         let bytes = response.bytes().await?;
 
-        // let unescaped =
-        //     reqwest_utils::string_formatting::reqwest_bytes_to_unescaped_string(&bytes)?;
         println!("in login(): bytes_to_string: {:#?}", bytes);
-        // let r = ?;
 
-        // match response.json::<UniversalAuthAccessTokenData>().await {
         match serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes) {
-            // match response.json::<UniversalAuthAccessTokenData>() {
             Ok(access_token) => Ok(UniversalAuthAccessToken {
                 data: SecretBox::new(Box::new(access_token)),
                 version: self.version.clone(),
@@ -111,8 +109,10 @@ impl UniversalAuthCredentials {
 }
 
 // ---------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------
 
-// ***************************
+/// Universal Auth Access Token functionality begins here
+///
 impl UniversalAuthAccessToken {
     // convenience functions to keep things below DRYer
     async fn construct_universal_auth_identity_endpoint_url(
@@ -149,11 +149,13 @@ impl UniversalAuthAccessToken {
     }
 
     // ***************************
+    /// UniversalAuth::Attach
+    /// app_config
+    // / identity_to_attach_to
     pub async fn attach(
-        // pub fn attach(
         &self,
         app_config: &AppConfig,
-        identitiy_to_configure: &str,
+        identity_to_attach_to: &str,
         client_secret_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_time_to_live: Option<u32>,
@@ -161,7 +163,7 @@ impl UniversalAuthAccessToken {
         access_token_num_uses_limit: Option<u128>,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
         let endpoint_url = self
-            .construct_universal_auth_identity_endpoint_url(app_config, identitiy_to_configure)
+            .construct_universal_auth_identity_endpoint_url(app_config, identity_to_attach_to)
             .await;
 
         // construct request headers
@@ -230,7 +232,7 @@ impl UniversalAuthAccessToken {
         // print HTTP response for user posterity
         println!(
             "Universal Auth Attach() for {} HTTP response: {}",
-            identitiy_to_configure,
+            identity_to_attach_to,
             response.status().to_string()
         );
 
@@ -265,14 +267,14 @@ impl UniversalAuthAccessToken {
         // pub fn retrieve(
         &self,
         app_config: &AppConfig,
-        identitiy_to_retrieve: &str,
+        identity_to_retrieve: &str,
         access_token: &UniversalAuthAccessToken,
     ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
         let endpoint_url = format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}",
             host_url = app_config.host,
             version = &self.version,
-            identity_id = identitiy_to_retrieve
+            identity_id = identity_to_retrieve
         );
         let response = app_config
             .client
@@ -284,7 +286,7 @@ impl UniversalAuthAccessToken {
         let response_status = response.status().to_string();
         println!(
             "Universal Auth retrieve() response for {}: {}",
-            identitiy_to_retrieve, response_status
+            identity_to_retrieve, response_status
         );
 
         match response.json::<IndentityUniversalAuth>().await {
