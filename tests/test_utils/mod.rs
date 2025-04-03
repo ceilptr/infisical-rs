@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use infisical_rs::infisical::utils::api_utils::AppConfig;
 // link to environment variables here
 // pub mod user_test_env;
-pub mod test_env;
+pub mod _env;
 
 // struct TestUtilSetup {
 //     host: String,
@@ -26,9 +26,13 @@ pub fn set_environment_variables() -> Result<(), Box<dyn std::error::Error>> {
 pub mod universal_auth_test_utils {
     use std::sync::LazyLock;
 
-    use infisical_rs::infisical::auth_methods::universal_auth::utils::UniversalAuthCredentials;
+    use infisical_rs::infisical::auth_methods::universal_auth::utils::{
+        UniversalAuthAccessToken, UniversalAuthCredentials,
+    };
 
-    use super::test_env::{TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET};
+    use super::_env::{
+        TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET, UNIVERSAL_AUTH_TESTING_STATION,
+    };
 
     pub static UNIVERSAL_AUTH_TEST_EMPTY_CREDENTIALS: LazyLock<UniversalAuthCredentials> =
         LazyLock::new(|| UniversalAuthCredentials {
@@ -55,4 +59,13 @@ pub mod universal_auth_test_utils {
         });
 
     pub fn universal_auth_test_setup() {}
+
+    pub async fn mock_access_token_login()
+    -> Result<UniversalAuthAccessToken, Box<dyn std::error::Error>> {
+        let config = &*UNIVERSAL_AUTH_TESTING_STATION;
+        Ok(config
+            .credentials
+            .login(&config.config.host, &config.config.client)
+            .await?)
+    }
 }

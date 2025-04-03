@@ -3,7 +3,7 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
-    net::IpAddr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
 };
 
 use error_handling::UniversalAuthError;
@@ -12,10 +12,10 @@ use reqwest::{
     header::{CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use secrecy::{ExposeSecret, SecretBox, SerializableSecret, zeroize::Zeroize};
-
 use utils::{
     universal_auth_util_functions::{
-        default_access_token_trusted_ip_vector, default_client_secret_trusted_ip_vector,
+        default_access_token_trusted_ip_form_data_vectors,
+        default_client_secret_trusted_ip_form_data_vectors,
     },
     *,
 };
@@ -41,21 +41,28 @@ impl UniversalAuthCredentials {
     ///
     /// Args:
     /// * `host` - A string slice denoting the host url used to connect to Infisical (e.g.: https://us.infisical.com, http://localhost:8080, etc)
-    /// * `client` - A reqwest client used to send off the API request. Defaults to the non-blocking version unless the `reqwest_blocking` feature is enabled in compilation.
+    /// * `client` - A reqwest client used to send off the API request. Defaults to the non-blocking version unless the `reqwest_blocking` feature (currently unavailable) is enabled in compilation .
     ///
     /// Result:
     ///
     /// # Example
     ///
     /// ```
-    ///     let credentials = UniversalAuthCredentials {
-    ///         client_id: "",
-    ///         client_secret: "",
-    ///         identity_id: "",
-    ///         version: "",
-    ///     }
+    /// use infisical_rs::infisical::auth_methods::universal_auth::utils::UniversalAuthCredentials;
     ///
-    ///     let access_token = credentials.login(host: "https://us.infisical.com", client: &reqwest_client).await?;
+    /// async fn test_login(){
+    ///      let credentials = UniversalAuthCredentials {
+    ///          client_id: "".to_string(),
+    ///          client_secret: "".to_string(),
+    ///          identity_id: "".to_string(),
+    ///          version: "".to_string(),
+    ///          };
+    ///     
+    ///         let client = reqwest::Client::new();
+    ///
+    ///      let access_token = credentials.login("https://us.infisical.com", &client).await?;
+    ///
+    /// }    
     /// ```
     ///
     pub async fn login(
@@ -193,12 +200,12 @@ impl UniversalAuthAccessToken {
             // check for user client secret trusted IPs
             trusted_ips_config_form_data.insert(
                 "clientSecretTrustedIpsStruct",
-                default_client_secret_trusted_ip_vector(),
+                default_client_secret_trusted_ip_form_data_vectors(),
             );
         } else if access_token_trusted_ips.is_none() {
             trusted_ips_config_form_data.insert(
                 "accessTokenTrustedIpsStruct",
-                default_access_token_trusted_ip_vector(),
+                default_access_token_trusted_ip_form_data_vectors(),
             );
         } else {
             //insert both user-defined client secret and access token trusted IPs
@@ -338,12 +345,12 @@ impl UniversalAuthAccessToken {
             // check for user client secret trusted IPs
             trusted_ips_config_form_data.insert(
                 "clientSecretTrustedIpsStruct",
-                default_client_secret_trusted_ip_vector(),
+                default_client_secret_trusted_ip_form_data_vectors(),
             );
         } else if access_token_trusted_ips.is_none() {
             trusted_ips_config_form_data.insert(
                 "accessTokenTrustedIpsStruct",
-                default_access_token_trusted_ip_vector(),
+                default_access_token_trusted_ip_form_data_vectors(),
             );
         } else {
             //insert both user-defined client secret and access token trusted IPs
@@ -586,7 +593,68 @@ impl UniversalAuthAccessToken {
     }
 }
 // ---------------------------------------------------------------------------------------------------------
-// impl UAuthSecrecyStruct
+
+///
+///
+impl IndentityUniversalAuth {
+    pub fn access_token_max_ttl(&self) -> &u32 {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .access_token_max_ttl
+    }
+
+    pub fn access_token_num_uses_limit(&self) -> &u32 {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .access_token_num_uses_limit
+    }
+
+    pub fn access_token_ttl(&self) -> &u32 {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .access_token_ttl
+    }
+
+    pub fn access_token_trusted_ips(&self) -> &Vec<AccessTokenTrustedIpsStruct> {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .access_token_trusted_ips
+    }
+
+    pub fn client_id(&self) -> &str {
+        &self.identity_universal_auth.expose_secret().client_id
+    }
+
+    pub fn client_secret_trusted_ips(&self) -> &Vec<ClientSecretTrustedIpsStruct> {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .client_secret_trusted_ips
+    }
+
+    pub fn created_at(&self) -> &Vec<AccessTokenTrustedIpsStruct> {
+        &self
+            .identity_universal_auth
+            .expose_secret()
+            .access_token_trusted_ips
+    }
+
+    pub fn id(&self) -> &str {
+        &self.identity_universal_auth.expose_secret().id
+    }
+
+    pub fn identity_id(&self) -> &str {
+        &self.identity_universal_auth.expose_secret().identity_id
+    }
+
+    pub fn updated_at(&self) -> &str {
+        &self.identity_universal_auth.expose_secret().updated_at
+    }
+}
 // ---------------------------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------------------------
@@ -621,11 +689,11 @@ impl UniversalAuthAccessToken {
     pub fn access_token(&self) -> &str {
         &self.data.expose_secret().access_token
     }
-    pub fn access_token_max_ttl(&self) -> u64 {
-        self.data.expose_secret().access_token_max_ttl
+    pub fn access_token_max_ttl(&self) -> &u32 {
+        &self.data.expose_secret().access_token_max_ttl
     }
-    pub fn expires_in(&self) -> u64 {
-        self.data.expose_secret().expires_in
+    pub fn expires_in(&self) -> &u32 {
+        &self.data.expose_secret().expires_in
     }
     pub fn token_type(&self) -> &str {
         &self.data.expose_secret().token_type
@@ -733,3 +801,60 @@ impl Zeroize for IndentityUniversalAuthData {
         self.updated_at.zeroize();
     }
 }
+
+impl AccessTokenTrustedIpsStruct {
+    pub fn default_ipv4() -> Self {
+        Self {
+            ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)).to_string(),
+            prefix: Default::default(),
+            type_: Default::default(),
+        }
+    }
+
+    pub fn default_ipv6() -> Self {
+        Self {
+            ip_address: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)).to_string(),
+            prefix: Default::default(),
+            type_: Default::default(),
+        }
+    }
+}
+
+impl ClientSecretTrustedIpsStruct {
+    pub fn default_ipv4() -> Self {
+        Self {
+            ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)).to_string(),
+            prefix: Default::default(),
+            type_: Default::default(),
+        }
+    }
+
+    pub fn default_ipv6() -> Self {
+        Self {
+            ip_address: IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)).to_string(),
+            prefix: Default::default(),
+            type_: Default::default(),
+        }
+    }
+}
+
+impl Debug for AccessTokenTrustedIpsStruct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AccessTokenTrustedIpsStruct")
+            .field("ip_address", &self.ip_address)
+            .field("prefix", &self.prefix)
+            .field("type_", &self.type_)
+            .finish()
+    }
+}
+
+impl Debug for ClientSecretTrustedIpsStruct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientSecretTrustedIpsStruct")
+            .field("ip_address", &self.ip_address)
+            .field("prefix", &self.prefix)
+            .field("type_", &self.type_)
+            .finish()
+    }
+}
+// ---------------------------------------------------------------------------------------------------------

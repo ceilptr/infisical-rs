@@ -17,8 +17,8 @@ target/
 #.idea/
 
 **.env
-**/*_env.rs
 **/env.rs
+**/*_env.rs
 *.conf
 
 

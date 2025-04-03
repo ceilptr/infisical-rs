@@ -14,11 +14,11 @@ use serde::{Deserialize, Serialize};
 /// # Example:
 /// ```
 ///     let credentials = UniversalAuthCredentials {
-///         client_id: ""
-///         client_secret: ""
-///         identity_id: ""
-///         version: "v1"
-///     }
+///         client_id: "".to_string(),
+///         client_secret: "".to_string(),
+///         identity_id: "".to_string(),
+///         version: "v1".to_string(),
+///     };
 /// ```
 ///
 /// The general workflow is as follows:
@@ -38,8 +38,8 @@ pub struct UniversalAuthCredentials {
 pub struct UniversalAuthAccessTokenData {
     pub access_token: String,
     #[serde(rename(serialize = "access_token_max_ttl", deserialize = "accessTokenMaxTTL"))]
-    pub access_token_max_ttl: u64,
-    pub expires_in: u64,
+    pub access_token_max_ttl: u32,
+    pub expires_in: u32,
     pub token_type: String,
 }
 
@@ -111,7 +111,7 @@ pub struct UniversalAuthClientSecret {
 
 // ---------------------------------------------------------------------------------------------------------
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct ClientSecretTrustedIpsStruct {
     pub ip_address: String,
@@ -120,7 +120,7 @@ pub struct ClientSecretTrustedIpsStruct {
     pub type_: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct AccessTokenTrustedIpsStruct {
     pub ip_address: String,
@@ -132,7 +132,7 @@ pub struct AccessTokenTrustedIpsStruct {
 pub type ClientSecretTrustedIp = Vec<(String, IpAddr)>;
 pub type AccessTokenTrustedIp = Vec<(String, IpAddr)>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct IndentityUniversalAuthData {
     #[serde(rename(serialize = "access_token_max_ttl", deserialize = "accessTokenMaxTTL"))]
@@ -152,16 +152,16 @@ pub struct IndentityUniversalAuthData {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct IndentityUniversalAuth {
-    // pub identity_universal_auth: IndentityUniversalAuthData,
     pub identity_universal_auth: SecretBox<IndentityUniversalAuthData>,
 }
 
 pub mod universal_auth_util_functions {
-
     // im repeating myself so eventually i'll fold the endpoint url construction into a function
     // the time is now
 
     use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+
+    use crate::infisical::{INFISICAL_DEFAULT_IPV4_ADDRESS, INFISICAL_DEFAULT_IPV6_ADDRESS};
 
     pub fn construct_universal_auth_token_endpoint_url(
         // app_config: &AppConfig,
@@ -180,29 +180,17 @@ pub mod universal_auth_util_functions {
     /**
      * These do the exact same thing, and are mainly convenience functions to clean up any identity-related functionality
      */
-    pub fn default_client_secret_trusted_ip_vector() -> Vec<(String, IpAddr)> {
+    pub fn default_client_secret_trusted_ip_form_data_vectors() -> Vec<(String, IpAddr)> {
         vec![
-            (
-                "ipAddress".to_string(),
-                IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            ),
-            (
-                "ipAddress".to_string(),
-                IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
-            ),
+            ("ipAddress".to_string(), INFISICAL_DEFAULT_IPV4_ADDRESS),
+            ("ipAddress".to_string(), INFISICAL_DEFAULT_IPV6_ADDRESS),
         ]
     }
 
-    pub fn default_access_token_trusted_ip_vector() -> Vec<(String, IpAddr)> {
+    pub fn default_access_token_trusted_ip_form_data_vectors() -> Vec<(String, IpAddr)> {
         vec![
-            (
-                "ipAddress".to_string(),
-                IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-            ),
-            (
-                "ipAddress".to_string(),
-                IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)),
-            ),
+            ("ipAddress".to_string(), INFISICAL_DEFAULT_IPV4_ADDRESS),
+            ("ipAddress".to_string(), INFISICAL_DEFAULT_IPV6_ADDRESS),
         ]
     }
 }

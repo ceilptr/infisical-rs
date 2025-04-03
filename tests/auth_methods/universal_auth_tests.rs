@@ -2,97 +2,140 @@
 pub mod universal_auth_tests {
     use crate::test_utils::{self, set_environment_variables};
 
-    pub mod create_auth_method {
-        use infisical_rs::infisical::auth_methods::universal_auth::utils::UniversalAuthCredentials;
+    pub mod login {
+        use infisical_rs::infisical::{
+            DEFAULT_INFISICAL_MAX_VAL,
+            auth_methods::universal_auth::utils::UniversalAuthAccessToken,
+        };
 
         use crate::test_utils;
 
-        pub fn empty_auth_credentials() -> UniversalAuthCredentials {
-            UniversalAuthCredentials {
-                client_id: "".to_string(),
-                client_secret: "".to_string(),
-                identity_id: "".to_string(),
-                version: "".to_string(),
-            }
-        }
-
-        pub fn mock_auth_credentials() -> UniversalAuthCredentials {
-            UniversalAuthCredentials {
-                client_id: (*test_utils::test_env::TEST_CLIENT_ID.clone()).to_string(),
-                client_secret: "TEST_CLIENT_SECRET".to_string(),
-                identity_id: "TEST_MACHINE_IDENTITY_ID".to_string(),
-                version: "v1".to_string(),
-            }
-        }
-
-        pub fn incorrect_auth_credentials() -> UniversalAuthCredentials {
-            UniversalAuthCredentials {
-                client_id: "TEST_CLIENT_ID".to_string(),
-                client_secret: "TEST_CLIENT_SECRET".to_string(),
-                identity_id: "TEST_MACHINE_IDENTITY_ID".to_string(),
-                version: "v1".to_string(),
-            }
-        }
-
-        #[test]
-        pub fn test_empty_auth_credentials() {
-            let credentials = empty_auth_credentials();
-
-            assert_eq!(credentials.client_id, "");
-            assert_eq!(credentials.client_secret, "");
-            assert_eq!(credentials.identity_id, "");
-            assert_eq!(credentials.version, "");
-        }
-
-        #[test]
-        fn test_mock_auth_credentials() {
-            let credentials = mock_auth_credentials();
-
-            assert_eq!(credentials.client_id, *test_utils::test_env::TEST_CLIENT_ID);
-            // assert_eq!(credentials.client_secret, "TEST_CLIENT_SECRET");
-            // assert_eq!(credentials.identity_id, "TEST_MACHINE_IDENTITY_ID");
-            // assert_eq!(credentials.version, "v1");
-        }
-    }
-
-    pub mod login {
-        use infisical_rs::infisical::utils::api_utils::AppConfig;
-
-        use crate::{
-            auth_methods::universal_auth_tests::universal_auth_tests::create_auth_method::mock_auth_credentials,
-            test_utils,
-        };
-
         #[tokio::test]
-        async fn login() {
-            // match dotenvy::dotenv() {
-            //     Ok(env_vars) => todo!(),
-            //     Err(_) => todo!(),
-            // }
+        async fn login() -> Result<(), Box<dyn std::error::Error>> {
+            let test_struct = &*test_utils::_env::UNIVERSAL_AUTH_TESTING_STATION;
 
-            let config = &*test_utils::INIT_CLOUD_APPCONFIG;
-            let credentials = mock_auth_credentials();
-
-            match credentials.login(&config.host, &config.client).await {
+            match test_struct
+                .credentials
+                .login(&test_struct.config.host, &test_struct.config.client)
+                .await
+            {
                 Ok(access_token) => {
                     assert!(!access_token.access_token().is_empty());
-                    assert!(!access_token.access_token_max_ttl().ge(&0));
-                    assert!(!access_token.expires_in().ge(&0));
+                    assert!(
+                        access_token
+                            .access_token_max_ttl()
+                            .ge(&DEFAULT_INFISICAL_MAX_VAL)
+                    );
+                    assert!(access_token.expires_in().eq(&DEFAULT_INFISICAL_MAX_VAL));
                     assert!(!access_token.version.is_empty());
+                    Ok(())
                 }
-                Err(e) => {}
+                Err(e) => {
+                    return Err(e);
+                }
             }
 
-            todo!("implement login test")
+            // todo!("implement login test")
         }
     }
 
-    #[test]
-    fn test_env_vars_0() {
-        set_environment_variables().ok();
-        for (key, value) in std::env::vars() {
-            println!("${key}: ${value}");
+    pub mod access_token_testing {
+        pub mod test_attach {
+            use infisical_rs::infisical::{
+                DEFAULT_INFISICAL_MAX_VAL, INFISICAL_DEFAULT_IPV4_ADDRESS,
+                INFISICAL_DEFAULT_IPV6_ADDRESS,
+                auth_methods::universal_auth::utils::{
+                    AccessTokenTrustedIp, AccessTokenTrustedIpsStruct, ClientSecretTrustedIpsStruct,
+                },
+            };
+            use reqwest::header::Iter;
+
+            use crate::test_utils::{self, universal_auth_test_utils::mock_access_token_login};
+            #[tokio::test]
+            async fn test_attach_default() -> Result<(), Box<dyn std::error::Error>> {
+                let config = &*test_utils::_env::UNIVERSAL_AUTH_TESTING_STATION;
+
+                let access_token = mock_access_token_login().await?;
+
+                match access_token
+                    .attach(
+                        &config.config.host,
+                        &config.config.client,
+                        &*test_utils::_env::TEST_ATTACH_IDENTITY_ID,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await
+                {
+                    Ok(uauth_identity) => {
+                        assert_eq!(
+                            *uauth_identity.access_token_max_ttl(),
+                            DEFAULT_INFISICAL_MAX_VAL
+                        );
+
+                        assert_eq!(*uauth_identity.access_token_num_uses_limit(), 0);
+
+                        assert_eq!(*uauth_identity.access_token_ttl(), 0);
+
+                        let default_access_token_trusted_ips: Vec<AccessTokenTrustedIpsStruct> = vec![
+                            AccessTokenTrustedIpsStruct::default_ipv4(),
+                            AccessTokenTrustedIpsStruct::default_ipv6(),
+                        ];
+
+                        let default_client_secret_trusted_ips: Vec<ClientSecretTrustedIpsStruct> = vec![
+                            ClientSecretTrustedIpsStruct::default_ipv4(),
+                            ClientSecretTrustedIpsStruct::default_ipv6(),
+                        ];
+
+                        // thanks, internet: https://stackoverflow.com/questions/29504514/whats-the-best-way-to-compare-2-vectors-or-strings-element-by-element
+
+                        let match_access_token_trusted_ips = uauth_identity
+                            .access_token_trusted_ips()
+                            .iter()
+                            .zip(default_access_token_trusted_ips.iter())
+                            .filter(|&(uauth_identity_ip, default_ip)| {
+                                uauth_identity_ip.eq(default_ip)
+                            })
+                            .count();
+
+                        let match_client_secret_trusted_ips = uauth_identity
+                            .client_secret_trusted_ips()
+                            .iter()
+                            .zip(default_client_secret_trusted_ips.iter())
+                            .filter(|&(uauth_identity_ip, default_ip)| {
+                                uauth_identity_ip.eq(default_ip)
+                            })
+                            .count();
+
+                        // assert access_token and client_secret trusted ips were constructed correctly
+                        assert_eq!(
+                            match_access_token_trusted_ips,
+                            uauth_identity.access_token_trusted_ips().len()
+                        );
+                        assert_eq!(
+                            match_access_token_trusted_ips,
+                            default_access_token_trusted_ips.len()
+                        );
+
+                        assert_eq!(
+                            match_client_secret_trusted_ips,
+                            uauth_identity.client_secret_trusted_ips().len()
+                        );
+                        assert_eq!(
+                            match_client_secret_trusted_ips,
+                            default_client_secret_trusted_ips.len()
+                        );
+
+                        // the rest of the things to clean up
+                        assert_ne!(uauth_identity.client_id().is_empty(), true);
+                    }
+                    Err(e) => return Err(e),
+                }
+                todo!("implement test_attach()")
+            }
         }
-        assert_eq!(std::env::var("TEST_ATTACH_IDENTITY_ID").is_ok(), true);
     }
 }
