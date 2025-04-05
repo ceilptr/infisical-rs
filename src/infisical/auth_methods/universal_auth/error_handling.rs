@@ -7,16 +7,16 @@ pub trait UniversalAuthErrorTrait {}
 pub enum UniversalAuthError {
     #[error(
         "
-        API Error: {response_status:?}: {reponnse_error_message:?} \n\
-        Details: {reponnse_error_details:?} \n\
+        API Error: {response_status:?}: {response_error_message:?} \n\
+        Details: {response_error_details:?} \n\
         This could mean a few things: \n\
             - the client id, client secret, identity id, or version specified was incorrect, \n\
             - the actual Universal Auth client secret's maximum use limit has been exceeded \n"
     )]
     GetHTMLResponseError {
         response_status: String,
-        reponnse_error_message: String,
-        reponnse_error_details: String,
+        response_error_message: String,
+        response_error_details: String,
     },
 
     // note: the Either() is because depending on where exactly we catch an error in login
@@ -52,6 +52,19 @@ pub enum UniversalAuthError {
 
     #[error("Invalid Universal Auth API Version Credentials Specified: {version} ")]
     NoUniversalAuthAPIVersionSpecified { version: String },
+
+    #[error(
+        "
+    Could not retrieve the given identity {identity}. Most likely the identity does not exist, \
+    or the API version {api_version} being used is causing issues. \n\
+    Error: {error:#?} \n
+    "
+    )]
+    RetrieveIdentityError {
+        identity: String,
+        api_version: String,
+        error: ApiResponse,
+    },
 
     #[error("UniversalAuth::update(): {error:#?}")]
     UpdateIdentityError { error: reqwest::Error },

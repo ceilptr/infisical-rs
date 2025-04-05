@@ -24,6 +24,9 @@ use utils::{
 use crate::infisical::{DEFAULT_INFISICAL_MAX_VAL, utils::api_utils::ApiResponse};
 
 pub mod error_handling;
+
+/// The main entrypoint to the Universal Auth module.
+/// Contains methods to obtain access tokens, modify identities and access token fields, etc.
 pub mod utils;
 
 // ---------------------------------------------------------------------------------------------------------
@@ -303,13 +306,24 @@ impl UniversalAuthAccessToken {
         Ok(configured_identity)
     }
 
+    /// retrieve()
+    ///
+    /// retrieves information about a given identity
+    ///
+    /// Arguments:
+    ///     - self
+    ///     - host: Infisical host url to retrieve from, e.g.: https://us.infisical.com
+    ///     - client: reqwest client to use. Defaults to async version
+    ///     - identity_to_retrieve: identity to be...well, retrieved.
+    ///     - access_token: valid access token from login() method. fairly worrying if you got here without one of these, but still.
+    ///
+    ///
     pub async fn retrieve(
         &self,
         host: &str,
         client: &reqwest::Client,
         identity_to_retrieve: &str,
-        access_token: &UniversalAuthAccessToken,
-    ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
+    ) -> Result<IndentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}",
             host_url = host,
@@ -318,22 +332,35 @@ impl UniversalAuthAccessToken {
         );
         let response = client
             .get(endpoint_url)
-            .bearer_auth(access_token.access_token())
+            .bearer_auth(&self.access_token())
             .send()
             .await?;
 
-        let response_status = response.status().to_string();
+        // let response_status = response.status().to_string();
 
-        #[cfg(not(feature = "logging_silent"))]
-        println!(
-            "Universal Auth retrieve() response for {}: {}",
-            identity_to_retrieve, response_status
-        );
+        // #[cfg(not(feature = "logging_silent"))]
+        // println!(
+        //     "Universal Auth retrieve() response for {}: {}",
+        //     identity_to_retrieve, response_status
+        // );
 
-        match response.json::<IndentityUniversalAuth>().await {
-            Ok(retrieved_configuration) => return Ok(retrieved_configuration),
-            Err(e) => return Err(Box::new(e)),
-        };
+        // if response doesnt return a 200 OK, short circuit and return a ApiResponse
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
+
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::RetrieveIdentityError {
+                identity: identity_to_retrieve.to_string(),
+                api_version: self.version.clone(),
+                error: error_response,
+            });
+        }
+
+        let retrieved_configuration = response.json::<IndentityUniversalAuth>().await?;
+
+        Ok(retrieved_configuration)
 
         // todo!()
     }
@@ -449,6 +476,9 @@ impl UniversalAuthAccessToken {
         // todo!()
     }
 
+    /// revoke()
+    ///
+    /// Revokes the current Universal Auth configuration on a given identity, if one is found.
     pub async fn revoke(
         &self,
         host: &str,
@@ -501,7 +531,6 @@ impl UniversalAuthAccessToken {
         client_secret_num_uses_limit: u64,
         client_secret_time_to_live: u64,
     ) -> Result<UniversalAuthClientSecret, Box<dyn std::error::Error>> {
-        // ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
         let endpoint_url = self
             .construct_universal_client_secret_url(&host, identity_id, None)
             .await;
@@ -644,7 +673,7 @@ impl IndentityUniversalAuth {
             .access_token_ttl
     }
 
-    pub fn access_token_trusted_ips(&self) -> &Vec<AccessTokenTrustedIpsStruct> {
+    pub fn access_token_trusted_ips(&self) -> &Vec<AccessTokenTrustedIp> {
         &self
             .identity_universal_auth
             .expose_secret()
@@ -655,14 +684,14 @@ impl IndentityUniversalAuth {
         &self.identity_universal_auth.expose_secret().client_id
     }
 
-    pub fn client_secret_trusted_ips(&self) -> &Vec<ClientSecretTrustedIpsStruct> {
+    pub fn client_secret_trusted_ips(&self) -> &Vec<ClientSecretTrustedIp> {
         &self
             .identity_universal_auth
             .expose_secret()
             .client_secret_trusted_ips
     }
 
-    pub fn created_at(&self) -> &Vec<AccessTokenTrustedIpsStruct> {
+    pub fn created_at(&self) -> &Vec<AccessTokenTrustedIp> {
         &self
             .identity_universal_auth
             .expose_secret()
@@ -828,7 +857,7 @@ impl Zeroize for IndentityUniversalAuthData {
     }
 }
 
-impl AccessTokenTrustedIpsStruct {
+impl AccessTokenTrustedIp {
     pub fn default_ipv4() -> Self {
         Self {
             ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)).to_string(),
@@ -846,7 +875,7 @@ impl AccessTokenTrustedIpsStruct {
     }
 }
 
-impl ClientSecretTrustedIpsStruct {
+impl ClientSecretTrustedIp {
     pub fn default_ipv4() -> Self {
         Self {
             ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)).to_string(),
@@ -864,7 +893,7 @@ impl ClientSecretTrustedIpsStruct {
     }
 }
 
-impl Debug for AccessTokenTrustedIpsStruct {
+impl Debug for AccessTokenTrustedIp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AccessTokenTrustedIpsStruct")
             .field("ip_address", &self.ip_address)
@@ -874,7 +903,7 @@ impl Debug for AccessTokenTrustedIpsStruct {
     }
 }
 
-impl Debug for ClientSecretTrustedIpsStruct {
+impl Debug for ClientSecretTrustedIp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClientSecretTrustedIpsStruct")
             .field("ip_address", &self.ip_address)

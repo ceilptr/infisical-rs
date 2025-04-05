@@ -1,5 +1,3 @@
-use std::net::IpAddr;
-
 use secrecy::{SecretBox, SecretString};
 use serde::{Deserialize, Serialize};
 
@@ -58,22 +56,22 @@ pub struct UniversalAuthAccessTokenData {
 /// - version:  version of the Universal Auth Endpoint API being used for this access token. Mainly carried over from the previous
 ///             UniversalAuthCredentials struct you'd have created previously.
 ///
-/// Technically, any access in the secrecy-wrapped data field first needs to be "unsealed" by calling expose_secret (e.g.: user_token.data.expose_secret().access_token),
+/// Technically, any access in the secrecy-wrapped data field first needs to be "unsealed" by calling expose_secret (e.g.: {user_token}.{SecretBox_fieldname}.expose_secret().{field}),
 /// and this method of accessing said secrets is obviously available if need be.
+///
 /// Multiple convenience functions are available to access a given secret field, however, and are named directly after the field itself.
-/// So user_token.access_token() is equivalent to calling user_token.data.expose_secret().access_token.
+/// So {user_token}.access_token() is equivalent to calling {user_token}.{data}.expose_secret().{access_token}, for instance.
 ///
 /// # Example
 #[derive(Serialize, Deserialize)]
 pub struct UniversalAuthAccessToken {
-    // #[serde(flatten)]
     pub data: SecretBox<UniversalAuthAccessTokenData>,
     #[serde(skip)]
     pub version: String,
 }
 
 // ***********************
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct UniversalAuthClientSecretData {
     pub client_secret_num_uses: u128,
@@ -90,19 +88,27 @@ pub struct UniversalAuthClientSecretData {
     pub updated_at: String,
 }
 
-// #[derive(Serialize, Deserialize, Debug, Clone)]
-// #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-// pub struct UniversalAuthClientSecretDataContainer {
-//     pub clientSecretData: UniversalAuthClientSecretData,
-// }
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct UniversalAuthClientSecretDataList {
     pub client_secret_data: Vec<SecretBox<UniversalAuthClientSecretData>>,
 }
 
-#[derive(Deserialize, Debug)]
+///
+/// Fields:
+/// - client_secret: any given client secret of the given identity
+/// - client_secret_data:
+///     - pub client_secret_num_uses: u128,
+///     - client_secret_num_uses_limit: u128,
+///     - client_secret_prefix: String,
+///     - client_secret_ttl: u128,
+///     - created_at: String,
+///     - description: String,
+///     - id: String,
+///     - identity_ua_id: String,
+///     - is_client_secret_revoked: bool,
+///     - updated_at: String,
+#[derive(Deserialize)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct UniversalAuthClientSecret {
     pub client_secret: SecretString,
@@ -113,7 +119,7 @@ pub struct UniversalAuthClientSecret {
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-pub struct ClientSecretTrustedIpsStruct {
+pub struct ClientSecretTrustedIp {
     pub ip_address: String,
     pub prefix: u128,
     #[serde(rename(serialize = "type", deserialize = "type"))]
@@ -122,15 +128,12 @@ pub struct ClientSecretTrustedIpsStruct {
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-pub struct AccessTokenTrustedIpsStruct {
+pub struct AccessTokenTrustedIp {
     pub ip_address: String,
     pub prefix: u128,
     #[serde(rename(serialize = "type", deserialize = "type"))]
     pub type_: String,
 }
-
-pub type ClientSecretTrustedIp = Vec<(String, IpAddr)>;
-pub type AccessTokenTrustedIp = Vec<(String, IpAddr)>;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
@@ -140,9 +143,9 @@ pub struct IndentityUniversalAuthData {
     pub access_token_num_uses_limit: u32,
     #[serde(rename(serialize = "access_token_ttl", deserialize = "accessTokenTTL"))]
     pub access_token_ttl: u32,
-    pub access_token_trusted_ips: Vec<AccessTokenTrustedIpsStruct>,
+    pub access_token_trusted_ips: Vec<AccessTokenTrustedIp>,
     pub client_id: String,
-    pub client_secret_trusted_ips: Vec<ClientSecretTrustedIpsStruct>,
+    pub client_secret_trusted_ips: Vec<ClientSecretTrustedIp>,
     pub created_at: String,
     pub id: String,
     pub identity_id: String,

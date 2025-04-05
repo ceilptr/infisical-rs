@@ -32,7 +32,8 @@ pub mod universal_auth_test_utils {
     };
 
     use super::_env::{
-        TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET, UNIVERSAL_AUTH_TESTING_STATION,
+        TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET,
+        UNIVERSAL_AUTH_TESTING_STATION, UniversalAuthTestStruct,
     };
 
     pub static UNIVERSAL_AUTH_TEST_EMPTY_CREDENTIALS: LazyLock<UniversalAuthCredentials> =
@@ -61,8 +62,9 @@ pub mod universal_auth_test_utils {
 
     pub fn universal_auth_test_setup() {}
 
-    pub async fn mock_access_token_login() -> Result<UniversalAuthAccessToken, UniversalAuthError> {
-        let config = &*UNIVERSAL_AUTH_TESTING_STATION;
+    pub async fn mock_access_token_login(
+        config: &UniversalAuthTestStruct,
+    ) -> Result<UniversalAuthAccessToken, UniversalAuthError> {
         Ok(config
             .credentials
             .login(&config.config.host, &config.config.client)
