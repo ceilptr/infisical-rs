@@ -26,8 +26,9 @@ pub fn set_environment_variables() -> Result<(), Box<dyn std::error::Error>> {
 pub mod universal_auth_test_utils {
     use std::sync::LazyLock;
 
-    use infisical_rs::infisical::auth_methods::universal_auth::utils::{
-        UniversalAuthAccessToken, UniversalAuthCredentials,
+    use infisical_rs::infisical::auth_methods::universal_auth::{
+        error_handling::UniversalAuthError,
+        utils::{UniversalAuthAccessToken, UniversalAuthCredentials},
     };
 
     use super::_env::{
@@ -60,8 +61,7 @@ pub mod universal_auth_test_utils {
 
     pub fn universal_auth_test_setup() {}
 
-    pub async fn mock_access_token_login()
-    -> Result<UniversalAuthAccessToken, Box<dyn std::error::Error>> {
+    pub async fn mock_access_token_login() -> Result<UniversalAuthAccessToken, UniversalAuthError> {
         let config = &*UNIVERSAL_AUTH_TESTING_STATION;
         Ok(config
             .credentials

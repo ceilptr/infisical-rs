@@ -12,6 +12,7 @@ use reqwest::{
     header::{CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use secrecy::{ExposeSecret, SecretBox, SerializableSecret, zeroize::Zeroize};
+
 use utils::{
     universal_auth_util_functions::{
         default_access_token_trusted_ip_form_data_vectors,
@@ -20,9 +21,7 @@ use utils::{
     *,
 };
 
-use crate::infisical::utils::{
-    api_utils::ApiResponseEnum, reqwest_utils::reqwest_bytes_to_unescaped_string,
-};
+use crate::infisical::{DEFAULT_INFISICAL_MAX_VAL, utils::api_utils::ApiResponse};
 
 pub mod error_handling;
 pub mod utils;
@@ -69,7 +68,7 @@ impl UniversalAuthCredentials {
         &self,
         host: &str,
         client: &reqwest::Client,
-    ) -> Result<UniversalAuthAccessToken, Box<dyn std::error::Error>> {
+    ) -> Result<UniversalAuthAccessToken, UniversalAuthError> {
         let auth_login_url = format!("{}/api/{}/auth/universal-auth/login", host, &self.version);
 
         // much cleaner way of constructing reqwest headers and json data and...whatever else in the future
@@ -88,45 +87,32 @@ impl UniversalAuthCredentials {
             .headers(universal_auth_data_headers)
             .json(&universal_auth_data)
             .send()
-            .await?;
-
-        // for error handling / reporting
-        let response_status = response.status().to_string();
+            .await
+            .or_else(|e| return Err(UniversalAuthError::ReqwestError(e)))?;
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
         if response.status().ne(&StatusCode::OK) {
-            let error_response = response.json::<ApiResponseEnum>().await?;
+            let error_response = response.json::<ApiResponse>().await?;
 
             #[cfg(not(feature = "logging_silent"))]
             println!("error_response: {}", error_response.to_string());
 
-            return Err(Box::new(UniversalAuthError::UniversalAuthLoginError {
+            return Err(UniversalAuthError::UniversalAuthLoginError {
                 client_id: self.client_id.clone(),
                 client_identity_id: self.identity_id.clone(),
-                version: self.version.clone(),
-                response_status,
-                access_token_error: either::Right(error_response.to_string()),
-            }));
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
 
+        // allows us abit more flexibility in error reporting (or success, really)
         let bytes = response.bytes().await?;
 
-        match serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes) {
-            Ok(access_token) => Ok(UniversalAuthAccessToken {
-                data: SecretBox::new(Box::new(access_token)),
-                version: self.version.clone(),
-            }),
-            Err(access_token_error) => {
-                println!("access_token_error");
-                return Err(Box::new(UniversalAuthError::UniversalAuthLoginError {
-                    client_id: self.client_id.clone(),
-                    client_identity_id: self.identity_id.clone(),
-                    version: self.version.clone(),
-                    response_status,
-                    access_token_error: either::Left(access_token_error),
-                }));
-            }
-        }
+        let access_token = serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes)?;
+        Ok(UniversalAuthAccessToken {
+            data: SecretBox::new(Box::new(access_token)),
+            version: self.version.clone(),
+        })
     }
 }
 
@@ -171,7 +157,31 @@ impl UniversalAuthAccessToken {
 
     // ***************************
     /// UniversalAuth::Attach
-    /// app_config
+    ///
+    /// Use: forms a request to attach a new Universal Authentication configuration to a given identity.
+    ///
+    /// Fails on either a malformed network request (), or a Universal Auth config already attached to the given identity.
+    ///
+    ///
+    ///
+    /// Arguments:
+    ///     &self:
+    ///     host:
+    ///     client:
+    ///     identity_to_attach_to:
+    ///     client_secret_trusted_ips:
+    ///     access_token_trusted_ips:
+    ///     access_token_time_to_live:
+    ///     access_token_max_time_to_live:
+    ///     access_token_num_uses_limit:
+    ///
+    /// # Notes:  
+    ///     - access_token_time_to_live, access_token_max_time_to_live, have an maximum defined in DEFAULT_INFISICAL_MAX_VAL, equivalent to 2592000 seconds, or 30 days by default.
+    ///     - for access_token_num_uses_limit, access_token_time_to_live, and access_token_max_time_to_live, a value of 0 denotes unlimited uses
+    ///     - configurable trusted IPs requires an Infisical Pro or above plan, and defaults to default ipv4 and ipv6 addresses of 0.0.0.0/0.0.0.0.0.0.0.0.0 otherwise.
+    ///     -
+    ///
+    ///
     pub async fn attach(
         &self,
         host: &str,
@@ -182,7 +192,7 @@ impl UniversalAuthAccessToken {
         access_token_time_to_live: Option<u32>,
         access_token_max_time_to_live: Option<u32>,
         access_token_num_uses_limit: Option<u128>,
-    ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
+    ) -> Result<IndentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = &self
             .construct_universal_auth_identity_endpoint_url(&host, identity_to_attach_to)
             .await;
@@ -226,13 +236,19 @@ impl UniversalAuthAccessToken {
         // note: the magic numbers are Infisical's default values for this field (equivalent to 30 days by default), so ask them
         access_token_config_form_data.insert(
             "accessTokenTTL",
-            serde_json::to_value(access_token_time_to_live.unwrap_or_else(|| 2592000))?,
+            serde_json::to_value(
+                access_token_time_to_live.unwrap_or_else(|| DEFAULT_INFISICAL_MAX_VAL),
+            )?,
         );
+
         // note: the magic numbers are Infisical's default values for this field (equivalent to 30 days by default,), so ask them
         access_token_config_form_data.insert(
             "accessTokenMaxTTL",
-            serde_json::to_value(access_token_max_time_to_live.unwrap_or_else(|| 2592000))?,
+            serde_json::to_value(
+                access_token_max_time_to_live.unwrap_or_else(|| DEFAULT_INFISICAL_MAX_VAL),
+            )?,
         );
+
         // note: the magic numbers are Infisical's default values for this field (equivalent to 0 limits on number of usage, or unlimited usage), so ask them
         access_token_config_form_data.insert(
             "accessTokenNumUsesLimit",
@@ -247,39 +263,44 @@ impl UniversalAuthAccessToken {
             .json(&trusted_ips_config_form_data)
             .json(&access_token_config_form_data)
             .send()
-            .await?;
+            .await
+            .or_else(|e| return Err(UniversalAuthError::ReqwestError(e)))?;
 
         // print HTTP response for user posterity
-        println!(
-            "Universal Auth Attach() for {} HTTP response: {}",
-            identity_to_attach_to,
-            response.status().to_string()
-        );
+        // println!(
+        //     "Universal Auth Attach() for {} HTTP response: {}",
+        //     identity_to_attach_to,
+        //     response.status().to_string()
+        // );
+
+        // if response doesnt return a 200 OK, short circuit and return a ApiResponse
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
+
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::AttachConfigurationError {
+                client_identity_id: identity_to_attach_to.to_string(),
+                version: self.version.clone(),
+                error: error_response,
+            });
+        }
 
         let bytes = response.bytes().await?;
-        let unescaped = reqwest_bytes_to_unescaped_string(&bytes)?;
-        println!(
-            "universalauth::attach bytes(): \n\
-        {}\n",
-            unescaped
-        );
 
         // attempt to deserialize HTTP response into a compatible Rust struct for...
         // rust things where you would need this
 
-        match serde_json::from_slice::<IndentityUniversalAuth>(&bytes) {
-            Ok(uauth_identity_data) => {
-                println!(
-                    "ex: {}",
-                    uauth_identity_data
-                        .identity_universal_auth
-                        .expose_secret()
-                        .access_token_max_ttl
-                );
-                Ok(uauth_identity_data)
-            }
-            Err(struct_error) => return Err(format!("struct_error: {:#?}", struct_error).into()),
-        }
+        let configured_identity = serde_json::from_slice::<IndentityUniversalAuth>(&bytes)?;
+        println!(
+            "ex: {}",
+            configured_identity
+                .identity_universal_auth
+                .expose_secret()
+                .access_token_max_ttl
+        );
+        Ok(configured_identity)
     }
 
     pub async fn retrieve(
@@ -302,6 +323,8 @@ impl UniversalAuthAccessToken {
             .await?;
 
         let response_status = response.status().to_string();
+
+        #[cfg(not(feature = "logging_silent"))]
         println!(
             "Universal Auth retrieve() response for {}: {}",
             identity_to_retrieve, response_status
@@ -317,6 +340,9 @@ impl UniversalAuthAccessToken {
 
     // this is 99.99% the exaxt same code as attach() above outside of calling reqwest::patch instead of request::post,
     // so the majority of that function's logic carries over to here
+
+    /// update()
+    ///
     pub async fn update(
         &self,
         host: &str,

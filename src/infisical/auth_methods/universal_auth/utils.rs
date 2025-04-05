@@ -159,7 +159,7 @@ pub mod universal_auth_util_functions {
     // im repeating myself so eventually i'll fold the endpoint url construction into a function
     // the time is now
 
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+    use std::net::IpAddr;
 
     use crate::infisical::{INFISICAL_DEFAULT_IPV4_ADDRESS, INFISICAL_DEFAULT_IPV6_ADDRESS};
 

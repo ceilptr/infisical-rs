@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.97"
 either = { version = "1.15.0", features = ["serde"] }
 reqwest = { version = "0.12.15", features = ["json"] }
 secrecy = { version = "0.10.3", features = ["serde"] }

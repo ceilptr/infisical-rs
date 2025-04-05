@@ -1,7 +1,9 @@
-use either::Either;
-use thiserror::Error;
+use crate::infisical::utils::api_utils::ApiResponse;
+
 // ---------------------------------------------------------------------------------------------------------
-#[derive(Error, Debug)]
+pub trait UniversalAuthErrorTrait {}
+
+#[derive(thiserror::Error, Debug)]
 pub enum UniversalAuthError {
     #[error(
         "
@@ -23,9 +25,8 @@ pub enum UniversalAuthError {
         Client ID: {client_id} \n\
         Client Secret: ************** \n\
         Client identity ID: {client_identity_id} \n\
-        Universal Auth API Version: {version} \n\n\
-        HTTP Response: {response_status} \n\
-        {access_token_error}. \n\n \
+        Universal Auth API Version: {api_version} \n\n\
+        {error:#?}. \n\n \
             This could mean a few things: \n\
                 -   the client id, client secret, identity id, or version specified was incorrect, \n\
                 -   the actual Universal Auth client secret's maximum use limit has been exceeded, \n\
@@ -36,11 +37,8 @@ pub enum UniversalAuthError {
         // credentials: UniversalAuthCredentials,
         client_id: String,
         client_identity_id: String,
-        version: String,
-        response_status: String,
-        // access_token_error: reqwest::Error,
-        // access_token_error: serde_json::Error,
-        access_token_error: Either<serde_json::Error, String>,
+        api_version: String,
+        error: ApiResponse,
     },
 
     #[error("No Universal Auth API Client ID Credentials Specified ")]
@@ -66,4 +64,29 @@ pub enum UniversalAuthError {
 
     #[error("UniversalAuth::list_client_secrets: {error:#?}")]
     ListClientSecretsError { error: serde_json::Error },
+
+    #[error(
+        "UniversalAuth::attach(): 
+        Identity ID: {client_identity_id}
+        API Version: {version}
+        Err: {error:#?}"
+    )]
+    AttachConfigurationError {
+        // err_text: String,
+        // error: serde_json::Error,
+        client_identity_id: String,
+        version: String,
+        error: ApiResponse,
+    },
+
+    #[error(transparent)]
+    SerdeJsonError(#[from] serde_json::Error),
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+    #[error("{error:#?}")]
+    StdError { error: String },
+    #[error(transparent)]
+    Other { error: anyhow::Error },
 }
+
+impl UniversalAuthErrorTrait for UniversalAuthError {}
