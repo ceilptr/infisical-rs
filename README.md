@@ -38,4 +38,5 @@ The plan is to:
 
 # additional notes
 - depending on how far my Google-Fu goes, implementation tracking will (most likely) be handled over on [this taiga project repo](https://tree.taiga.io/project/ceilptr-infisical-rs/timeline) or on Github Projects.
+- I'm still figuring out how best to deal with crate testing, given testing with environment variables will likely be dodgy given their shared nature and the fact that Rust apparently runs its tests in parallel. For the moment a test_env.rs file with a series of static strings + LazyLocks to fight those nasty race conditions, and may ask the user to do the same if they wish to run test themselves.
 

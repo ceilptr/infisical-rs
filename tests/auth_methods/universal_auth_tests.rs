@@ -1,34 +1,148 @@
 #[cfg(test)]
 pub mod universal_auth_tests {
-    pub mod create_auth_method {
-        use infisical_rs::infisical::auth_methods::universal_auth::utils::UniversalAuthCredentials;
 
-        #[test]
-        fn empty_auth_credentials() {
-            let credentials = UniversalAuthCredentials {
-                client_id: "".to_string(),
-                client_secret: "".to_string(),
-                identity_id: "".to_string(),
-                version: "".to_string(),
-            };
+    pub mod login {
+        use infisical_rs::infisical::{
+            DEFAULT_INFISICAL_MAX_VAL,
+            auth_methods::universal_auth::{self},
+        };
 
-            assert_eq!(credentials.client_id, "");
-            assert_eq!(credentials.client_secret, "");
-            assert_eq!(credentials.identity_id, "");
-            assert_eq!(credentials.version, "");
-        }
+        use crate::test_utils;
 
-        #[test]
-        fn mock_auth_credentials() {
-            let credentials = UniversalAuthCredentials {
-                client_id: "TEST_CLIENT_ID".to_string(),
-                client_secret: "TEST_CLIENT_SECRET".to_string(),
-                identity_id: "TEST_MACHINE_IDENTITY_ID".to_string(),
-                version: "v1".to_string(),
-            };
+        #[tokio::test]
+        async fn login() -> Result<(), universal_auth::error_handling::UniversalAuthError> {
+            let test_struct = &*test_utils::_env::UNIVERSAL_AUTH_TESTING_STATION;
+
+            match test_struct
+                .credentials
+                .login(&test_struct.config.host, &test_struct.config.client)
+                .await
+            {
+                Ok(access_token) => {
+                    assert!(!access_token.access_token().is_empty());
+                    assert!(
+                        access_token
+                            .access_token_max_ttl()
+                            .ge(&DEFAULT_INFISICAL_MAX_VAL)
+                    );
+                    assert!(access_token.expires_in().eq(&DEFAULT_INFISICAL_MAX_VAL));
+                    assert!(!access_token.version.is_empty());
+                    Ok(())
+                }
+                Err(e) => {
+                    return Err(e);
+                }
+            }
+
+            // todo!("implement login test")
         }
     }
 
-    #[tokio::test]
-    async fn login() {}
+    pub mod access_token_testing {
+        pub mod test_attach {
+            use infisical_rs::infisical::auth_methods::universal_auth::error_handling::UniversalAuthError;
+
+            /// tech_attach_default
+            ///
+            /// Expected: Ok(IndentityUniversalAuth)
+            ///
+            /// note: This test will fail if said identity already has a Universal Auth configuration. This is expected behaviour, and is addressed in the next test
+            use crate::{
+                auth_methods::test_default_trusted_ips,
+                test_utils::{self, universal_auth_test_utils::mock_access_token_login},
+            };
+            #[tokio::test]
+            async fn test_attach_default() -> Result<(), UniversalAuthError> {
+                let config = &*test_utils::_env::UNIVERSAL_AUTH_TESTING_STATION;
+                let access_token = mock_access_token_login(config).await?;
+
+                let test_identity = access_token
+                    .retrieve(
+                        &config.config.host,
+                        &config.config.client,
+                        &*test_utils::_env::TEST_ATTACH_IDENTITY_ID,
+                    )
+                    .await?;
+                match access_token
+                    .attach(
+                        &config.config.host,
+                        &config.config.client,
+                        &*test_utils::_env::TEST_ATTACH_IDENTITY_ID,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await
+                {
+                    Ok(uauth_identity) => {
+                        // the rest of the things to clean up
+                        assert_ne!(uauth_identity.id().is_empty(), true);
+                        assert_ne!(uauth_identity.client_id().is_empty(), true);
+                        assert_eq!(*uauth_identity.access_token_ttl(), 0);
+                        assert_eq!(*uauth_identity.access_token_max_ttl(), 0);
+                        assert_eq!(*uauth_identity.access_token_num_uses_limit(), 0);
+                        assert_eq!(
+                            test_default_trusted_ips(
+                                uauth_identity.access_token_trusted_ips(),
+                                uauth_identity.client_secret_trusted_ips()
+                            ),
+                            true
+                        );
+                        assert_ne!(uauth_identity.created_at().is_empty(), true);
+                        assert_ne!(uauth_identity.updated_at().is_empty(), true);
+                        assert_ne!(uauth_identity.identity_id().is_empty(), true);
+                    }
+                    Err(e) => return Err(e),
+                }
+                todo!("implement test_attach()")
+            }
+
+            fn test_already_attached_config() -> Result<(), Box<dyn std::error::Error>> {
+                todo!()
+            }
+        }
+        pub mod test_retrieve {
+            use infisical_rs::infisical::{
+                DEFAULT_INFISICAL_MAX_VAL,
+                auth_methods::universal_auth::{
+                    error_handling::UniversalAuthError, utils::AccessTokenTrustedIp,
+                },
+            };
+
+            use crate::test_utils::{
+                _env::{TEST_ATTACH_IDENTITY_ID, UNIVERSAL_AUTH_TESTING_STATION},
+                universal_auth_test_utils::mock_access_token_login,
+            };
+
+            #[tokio::test]
+            async fn test_default_retrieve() -> Result<(), UniversalAuthError> {
+                let config = &*UNIVERSAL_AUTH_TESTING_STATION;
+                let access_token = mock_access_token_login(&config).await?;
+
+                let retrieved_identity = access_token
+                    .retrieve(
+                        &config.config.host,
+                        &config.config.client,
+                        &*TEST_ATTACH_IDENTITY_ID,
+                    )
+                    .await?;
+
+                assert_eq!(
+                    *retrieved_identity.access_token_max_ttl(),
+                    DEFAULT_INFISICAL_MAX_VAL
+                );
+
+                assert_eq!(*retrieved_identity.access_token_num_uses_limit(), 0);
+
+                assert_eq!(
+                    *retrieved_identity.access_token_ttl(),
+                    DEFAULT_INFISICAL_MAX_VAL
+                );
+
+                Ok(())
+            }
+        }
+    }
 }

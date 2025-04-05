@@ -21,9 +21,9 @@ pub enum AuthMethod {
     Token { token: String, identity_id: String },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(untagged)]
-pub enum ApiResponseEnum {
+pub enum ApiResponse {
     #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
     Ok,
     #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
@@ -71,11 +71,11 @@ pub enum ApiResponseEnum {
     },
 }
 
-impl std::fmt::Display for ApiResponseEnum {
+impl std::fmt::Display for ApiResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ApiResponseEnum::Ok => todo!(),
-            ApiResponseEnum::BadRequest {
+            ApiResponse::Ok => todo!(),
+            ApiResponse::BadRequest {
                 req_id,
                 status_code,
                 message,
@@ -93,7 +93,7 @@ impl std::fmt::Display for ApiResponseEnum {
                 message = message,
                 error = error,
             ),
-            ApiResponseEnum::Unauthorized {
+            ApiResponse::Unauthorized {
                 req_id,
                 status_code,
                 message,
@@ -111,7 +111,7 @@ impl std::fmt::Display for ApiResponseEnum {
                 message = message,
                 error = error,
             ),
-            ApiResponseEnum::Forbidden {
+            ApiResponse::Forbidden {
                 req_id,
                 status_code,
                 details,
@@ -132,7 +132,7 @@ impl std::fmt::Display for ApiResponseEnum {
                 message = message,
                 error = error,
             ),
-            ApiResponseEnum::NotFound {
+            ApiResponse::NotFound {
                 // req_id,
                 error,
                 message,
@@ -149,7 +149,7 @@ impl std::fmt::Display for ApiResponseEnum {
                 message = message,
                 status_code = status_code,
             ),
-            ApiResponseEnum::UnprocessableContent {
+            ApiResponse::UnprocessableContent {
                 req_id,
                 status_code,
                 message,
@@ -167,7 +167,7 @@ impl std::fmt::Display for ApiResponseEnum {
                 message = message,
                 error = error,
             ),
-            ApiResponseEnum::InternalServerError {
+            ApiResponse::InternalServerError {
                 req_id,
                 status_code,
                 message,

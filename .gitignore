@@ -16,8 +16,10 @@ target/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-*.env
+**.env
+**/env.rs
+**/*_env.rs
 *.conf
 
 
-src/main/rs
+**/main.rs
