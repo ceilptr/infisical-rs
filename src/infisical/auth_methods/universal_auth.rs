@@ -21,7 +21,7 @@ use utils::{
     *,
 };
 
-use crate::infisical::{DEFAULT_INFISICAL_MAX_VAL, utils::api_utils::ApiResponse};
+use crate::infisical::{INFISICAL_DEFAULT_TIME_TO_LIVE, utils::api_utils::ApiResponse};
 
 pub mod error_handling;
 
@@ -35,14 +35,14 @@ pub mod utils;
 /// mainly used to login With a client_id and client_secret and retrieve a Universal Auth access token to do all the things
 impl UniversalAuthCredentials {
     /// login():
-    /// API Reference: https://infisical.com/docs/api-reference/endpoints/universal-auth/login
+    /// API Reference: <https://infisical.com/docs/api-reference/endpoints/universal-auth/login>
     ///
     /// Takes in a client id and secret, and returns a Universal Auth Access Token upon successful authorization. \
     /// The resulting access token is then used as a mechanism for the rest of the universal auth library functionality
     /// e.g.: get_secret(), revoke_client_secret(), attach().
     ///
     /// Args:
-    /// * `host` - A string slice denoting the host url used to connect to Infisical (e.g.: https://us.infisical.com, http://localhost:8080, etc)
+    /// * `host` - A string slice denoting the host url used to connect to Infisical (e.g.: <https://us.infisical.com>, http://localhost:8080, etc)
     /// * `client` - A reqwest client used to send off the API request. Defaults to the non-blocking version unless the `reqwest_blocking` feature (currently unavailable) is enabled in compilation .
     ///
     /// Result:
@@ -180,7 +180,7 @@ impl UniversalAuthAccessToken {
     ///
     /// # Notes:  
     ///     - access_token_time_to_live, access_token_max_time_to_live, have an maximum defined in DEFAULT_INFISICAL_MAX_VAL, equivalent to 2592000 seconds, or 30 days by default.
-    ///     - for access_token_num_uses_limit, access_token_time_to_live, and access_token_max_time_to_live, a value of 0 denotes unlimited uses
+    ///     - for access_token_num_uses_limit access_token_time_to_live and access_token_max_time_to_live a value of 0 denotes unlimited uses
     ///     - configurable trusted IPs requires an Infisical Pro or above plan, and defaults to default ipv4 and ipv6 addresses of 0.0.0.0/0.0.0.0.0.0.0.0.0 otherwise.
     ///     -
     ///
@@ -192,10 +192,10 @@ impl UniversalAuthAccessToken {
         identity_to_attach_to: &str,
         client_secret_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_trusted_ips: Option<&Vec<(String, IpAddr)>>,
-        access_token_time_to_live: Option<u32>,
-        access_token_max_time_to_live: Option<u32>,
+        access_token_time_to_live: Option<u128>,
+        access_token_max_time_to_live: Option<u128>,
         access_token_num_uses_limit: Option<u128>,
-    ) -> Result<IndentityUniversalAuth, UniversalAuthError> {
+    ) -> Result<IdentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = &self
             .construct_universal_auth_identity_endpoint_url(&host, identity_to_attach_to)
             .await;
@@ -240,7 +240,7 @@ impl UniversalAuthAccessToken {
         access_token_config_form_data.insert(
             "accessTokenTTL",
             serde_json::to_value(
-                access_token_time_to_live.unwrap_or_else(|| DEFAULT_INFISICAL_MAX_VAL),
+                access_token_time_to_live.unwrap_or_else(|| INFISICAL_DEFAULT_TIME_TO_LIVE),
             )?,
         );
 
@@ -248,7 +248,7 @@ impl UniversalAuthAccessToken {
         access_token_config_form_data.insert(
             "accessTokenMaxTTL",
             serde_json::to_value(
-                access_token_max_time_to_live.unwrap_or_else(|| DEFAULT_INFISICAL_MAX_VAL),
+                access_token_max_time_to_live.unwrap_or_else(|| INFISICAL_DEFAULT_TIME_TO_LIVE),
             )?,
         );
 
@@ -295,7 +295,7 @@ impl UniversalAuthAccessToken {
         // attempt to deserialize HTTP response into a compatible Rust struct for...
         // rust things where you would need this
 
-        let configured_identity = serde_json::from_slice::<IndentityUniversalAuth>(&bytes)?;
+        let configured_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
         println!(
             "ex: {}",
             configured_identity
@@ -312,18 +312,19 @@ impl UniversalAuthAccessToken {
     ///
     /// Arguments:
     ///     - self
-    ///     - host: Infisical host url to retrieve from, e.g.: https://us.infisical.com
+    ///     - host: Infisical host url to retrieve from, e.g.: <https://us.infisical.com>
     ///     - client: reqwest client to use. Defaults to async version
     ///     - identity_to_retrieve: identity to be...well, retrieved.
     ///     - access_token: valid access token from login() method. fairly worrying if you got here without one of these, but still.
     ///
+    /// Notes:
     ///
     pub async fn retrieve(
         &self,
         host: &str,
         client: &reqwest::Client,
         identity_to_retrieve: &str,
-    ) -> Result<IndentityUniversalAuth, UniversalAuthError> {
+    ) -> Result<IdentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = format!(
             "{host_url}/api/{version}/auth/universal-auth/identities/{identity_id}",
             host_url = host,
@@ -358,7 +359,7 @@ impl UniversalAuthAccessToken {
             });
         }
 
-        let retrieved_configuration = response.json::<IndentityUniversalAuth>().await?;
+        let retrieved_configuration = response.json::<IdentityUniversalAuth>().await?;
 
         Ok(retrieved_configuration)
 
@@ -377,10 +378,10 @@ impl UniversalAuthAccessToken {
         identity_to_update: &str,
         client_secret_trusted_ips: Option<&Vec<(String, IpAddr)>>,
         access_token_trusted_ips: Option<&Vec<(String, IpAddr)>>,
-        access_token_time_to_live: Option<u32>,
-        access_token_max_time_to_live: Option<u32>,
+        access_token_time_to_live: Option<u128>,
+        access_token_max_time_to_live: Option<u128>,
         access_token_num_uses_limit: Option<u128>,
-    ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
+    ) -> Result<IdentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = self
             .construct_universal_auth_identity_endpoint_url(host, identity_to_update)
             .await;
@@ -424,12 +425,16 @@ impl UniversalAuthAccessToken {
         // note: the magic numbers are Infisical's default values for this field (equivalent to 30 days by default), so ask them
         access_token_config_form_data.insert(
             "accessTokenTTL",
-            serde_json::to_value(access_token_time_to_live.unwrap_or_else(|| 2592000))?,
+            serde_json::to_value(
+                access_token_time_to_live.unwrap_or_else(|| INFISICAL_DEFAULT_TIME_TO_LIVE),
+            )?,
         );
         // note: the magic numbers are Infisical's default values for this field (equivalent to 30 days by default,), so ask them
         access_token_config_form_data.insert(
             "accessTokenMaxTTL",
-            serde_json::to_value(access_token_max_time_to_live.unwrap_or_else(|| 2592000))?,
+            serde_json::to_value(
+                access_token_max_time_to_live.unwrap_or_else(|| INFISICAL_DEFAULT_TIME_TO_LIVE),
+            )?,
         );
         // note: the magic numbers are Infisical's default values for this field (equivalent to 0 limits on number of usage, or unlimited usage), so ask them
         access_token_config_form_data.insert(
@@ -447,32 +452,25 @@ impl UniversalAuthAccessToken {
             .send()
             .await?;
 
-        // print HTTP response for user posterity
-        println!(
-            "Universal Auth Update() for {} HTTP response: {}",
-            identity_to_update,
-            response.status().to_string()
-        );
+        // if response doesnt return a 200 OK, short circuit and return a ApiResponse
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
 
-        // attempt to deserialize HTTP response into a compatible Rust struct for...
-        // rust things where you would need this
-        match response.json::<IndentityUniversalAuth>().await {
-            Ok(uauth_identity_data) => {
-                println!(
-                    "ex: {}",
-                    uauth_identity_data
-                        .identity_universal_auth
-                        .expose_secret()
-                        .access_token_max_ttl
-                );
-                Ok(uauth_identity_data)
-            }
-            Err(struct_error) => {
-                return Err(Box::new(UniversalAuthError::UpdateIdentityError {
-                    error: struct_error,
-                }));
-            }
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::UpdateIdentityError {
+                identity_to_update: identity_to_update.to_string(),
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
+
+        let bytes = response.bytes().await?;
+
+        let updated_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
+
+        Ok(updated_identity)
         // todo!()
     }
 
@@ -484,7 +482,7 @@ impl UniversalAuthAccessToken {
         host: &str,
         client: &reqwest::Client,
         identity_to_revoke: &str,
-    ) -> Result<IndentityUniversalAuth, Box<dyn std::error::Error>> {
+    ) -> Result<IdentityUniversalAuth, UniversalAuthError> {
         let endpoint_url = self
             .construct_universal_auth_identity_endpoint_url(&host, identity_to_revoke)
             .await;
@@ -497,29 +495,31 @@ impl UniversalAuthAccessToken {
             .await?;
 
         // print HTTP response for user posterity
+        #[cfg(not(feature = "logging_silent"))]
         println!(
             "Universal Auth Revoke() for {} HTTP response: {}",
             identity_to_revoke,
             response.status().to_string()
         );
 
-        match response.json::<IndentityUniversalAuth>().await {
-            Ok(uauth_identity_data) => {
-                println!(
-                    "ex: {}",
-                    uauth_identity_data
-                        .identity_universal_auth
-                        .expose_secret()
-                        .access_token_max_ttl
-                );
-                Ok(uauth_identity_data)
-            }
-            Err(struct_error) => {
-                return Err(Box::new(UniversalAuthError::RevokeClientSecretError {
-                    error: struct_error.without_url(),
-                }));
-            }
+        // if response doesnt return a 200 OK, short circuit and return a ApiResponse
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
+
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::RevokeUniversalAuthConfigurationError {
+                identity_id: identity_to_revoke.to_string(),
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
+
+        let bytes = response.bytes().await?;
+
+        let revoked_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
+        Ok(revoked_identity)
     }
 
     pub async fn create_client_secret(
@@ -646,27 +646,131 @@ impl UniversalAuthAccessToken {
         }
         // todo!()
     }
+
+    /// renew_access_token()
+    ///
+    ///
+    /// Arguments:
+    ///
+    /// Note: using a different version of the API (say, using API version v3 with a token that was originally sourced in v2 (please don't do this))
+    /// may have breaking changes causing renew to fail.
+    pub async fn renew_access_token(
+        &mut self,
+        host: &str,
+        version: &str,
+        client: &reqwest::Client,
+    ) -> Result<bool, UniversalAuthError> {
+        let endpoint_url = format!(
+            "{host}/api/{api_version}/auth/token/renew",
+            host = host,
+            api_version = version
+        );
+
+        let mut access_token_params = HashMap::new();
+        access_token_params.insert("accessToken", self.access_token());
+
+        let response = client
+            .post(&endpoint_url)
+            .header(CONTENT_TYPE, "application/json")
+            .form(&access_token_params)
+            .send()
+            .await?;
+
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
+
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::RenewAccessTokenError {
+                api_version: self.version.clone(),
+                error: error_response,
+            });
+        }
+
+        // allows us a bit more flexibility in error reporting (or success, really)
+        let bytes = response.bytes().await?;
+        let access_token_data = serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes)?;
+
+        self.data = SecretBox::new(Box::new(access_token_data));
+        self.version = version.to_string();
+
+        Ok(true)
+    }
+
+    /// revoke_access_token()
+    ///
+    ///
+    /// Arguments:
+    ///
+    /// Note: using a different version of the API (say, using API version v3 with a token that was originally sourced in v2 (please don't do this))
+    /// may have breaking changes causing renew to fail.
+    pub async fn revoke_access_token(
+        &mut self,
+        host: &str,
+        version: &str,
+        client: &reqwest::Client,
+    ) -> Result<String, UniversalAuthError> {
+        let endpoint_url = format!(
+            "{host}/api/{api_version}/auth/token/revoke",
+            host = host,
+            api_version = version
+        );
+
+        let mut access_token_params = HashMap::new();
+        access_token_params.insert("accessToken", self.access_token());
+
+        let response = client
+            .post(&endpoint_url)
+            .header(CONTENT_TYPE, "application/json")
+            .form(&access_token_params)
+            .send()
+            .await?;
+
+        if response.status().ne(&StatusCode::OK) {
+            let error_response = response.json::<ApiResponse>().await?;
+
+            #[cfg(not(feature = "logging_silent"))]
+            println!("error_response: {}", error_response.to_string());
+
+            return Err(UniversalAuthError::RevokeAccessTokenError {
+                api_version: self.version.clone(),
+                error: error_response,
+            });
+        }
+
+        let bytes = response.bytes().await?;
+
+        // allows us a bit more flexibility in error reporting (or success, really)
+        let revoke_message = serde_json::from_slice::<String>(&bytes)?;
+
+        // the token would already be invalidated in Infisical by this point,
+        // but we'll invalidate the token here as well for posterity's sake
+        self.data.zeroize();
+        self.version.zeroize();
+
+        Ok(revoke_message)
+    }
 }
 // ---------------------------------------------------------------------------------------------------------
 
-///
-///
-impl IndentityUniversalAuth {
-    pub fn access_token_max_ttl(&self) -> &u32 {
+/// convenience functions for IdentityUniversalAuth struct
+impl IdentityUniversalAuth {
+    pub fn access_token_max_ttl(&self) -> &u128 {
         &self
             .identity_universal_auth
             .expose_secret()
             .access_token_max_ttl
     }
 
-    pub fn access_token_num_uses_limit(&self) -> &u32 {
+    pub fn access_token_num_uses_limit(&self) -> &u128 {
         &self
             .identity_universal_auth
             .expose_secret()
             .access_token_num_uses_limit
     }
 
-    pub fn access_token_ttl(&self) -> &u32 {
+    pub fn access_token_ttl(&self) -> &u128 {
         &self
             .identity_universal_auth
             .expose_secret()
@@ -744,10 +848,10 @@ impl UniversalAuthAccessToken {
     pub fn access_token(&self) -> &str {
         &self.data.expose_secret().access_token
     }
-    pub fn access_token_max_ttl(&self) -> &u32 {
+    pub fn access_token_max_ttl(&self) -> &u128 {
         &self.data.expose_secret().access_token_max_ttl
     }
-    pub fn expires_in(&self) -> &u32 {
+    pub fn expires_in(&self) -> &u128 {
         &self.data.expose_secret().expires_in
     }
     pub fn token_type(&self) -> &str {
@@ -815,8 +919,39 @@ impl Zeroize for UniversalAuthClientSecretData {
 
 impl Display for UniversalAuthClientSecret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        todo!()
-        // write!(f, "")
+        // todo!()
+        write!(
+            f,
+            "
+                client_secret: ********** \n\
+    client secret num uses: {} \n
+    client secret num uses limit: {} \n
+    client secret prefix: {} \n
+    client secret time to live: {} \n
+    created at: {} \n
+    description: {} \n
+    id: {} \n
+    universal auth identity id: {} \n
+    is client secret revoked: {} \n
+    updated at: {} \n
+    ",
+            self.client_secret_data
+                .expose_secret()
+                .client_secret_num_uses,
+            self.client_secret_data
+                .expose_secret()
+                .client_secret_num_uses_limit,
+            self.client_secret_data.expose_secret().client_secret_prefix,
+            self.client_secret_data.expose_secret().client_secret_ttl,
+            self.client_secret_data.expose_secret().created_at,
+            self.client_secret_data.expose_secret().description,
+            self.client_secret_data.expose_secret().id,
+            self.client_secret_data.expose_secret().identity_ua_id,
+            self.client_secret_data
+                .expose_secret()
+                .is_client_secret_revoked,
+            self.client_secret_data.expose_secret().updated_at,
+        )
     }
 }
 
@@ -857,6 +992,7 @@ impl Zeroize for IndentityUniversalAuthData {
     }
 }
 
+/// convenience functions for AccessTokenTrustedIp
 impl AccessTokenTrustedIp {
     pub fn default_ipv4() -> Self {
         Self {
@@ -875,6 +1011,7 @@ impl AccessTokenTrustedIp {
     }
 }
 
+/// convenience functions for ClientSecretTrustedIp
 impl ClientSecretTrustedIp {
     pub fn default_ipv4() -> Self {
         Self {
