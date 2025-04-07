@@ -18,11 +18,6 @@ pub static INIT_CLOUD_APPCONFIG: LazyLock<AppConfig> = LazyLock::new(|| AppConfi
     client: reqwest::Client::new(),
 });
 
-pub fn set_environment_variables() -> Result<(), Box<dyn std::error::Error>> {
-    dotenvy::dotenv()?;
-    Ok(())
-}
-
 pub mod universal_auth_test_utils {
     use std::sync::LazyLock;
 
@@ -32,8 +27,7 @@ pub mod universal_auth_test_utils {
     };
 
     use super::_env::{
-        TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET,
-        UNIVERSAL_AUTH_TESTING_STATION, UniversalAuthTestStruct,
+        TEST_ATTACH_IDENTITY_ID, TEST_CLIENT_ID, TEST_CLIENT_SECRET, UniversalAuthTestStruct,
     };
 
     pub static UNIVERSAL_AUTH_TEST_EMPTY_CREDENTIALS: LazyLock<UniversalAuthCredentials> =

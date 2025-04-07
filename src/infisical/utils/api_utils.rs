@@ -83,10 +83,10 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                req_id: {req_id},
-                status_code: {status_code},
-                message: {message},
-                error: {error},
+                req_id: {req_id} \n,
+                status_code: {status_code} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 req_id = req_id,
                 status_code = status_code,
@@ -101,10 +101,10 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                req_id: {req_id},
-                status_code: {status_code},
-                message: {message},
-                error: {error},
+                req_id: {req_id} \n,
+                status_code: {status_code} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 req_id = req_id,
                 status_code = status_code,
@@ -120,11 +120,11 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                req_id: {req_id},
-                status_code: {status_code},
-                details: {details},
-                message: {message},
-                error: {error},
+                req_id: {req_id} \n,
+                status_code: {status_code} \n,
+                details: {details} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 req_id = req_id,
                 status_code = status_code,
@@ -140,9 +140,9 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                status_code: {status_code},
-                message: {message},
-                error: {error},
+                status_code: {status_code} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 // req_id = req_id,
                 error = error,
@@ -157,10 +157,10 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                req_id: {req_id},
-                status_code: {status_code},
-                message: {message},
-                error: {error},
+                req_id: {req_id} \n,
+                status_code: {status_code} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 req_id = req_id,
                 status_code = status_code,
@@ -175,10 +175,10 @@ impl std::fmt::Display for ApiResponse {
             } => write!(
                 f,
                 "
-                req_id: {req_id},
-                status_code: {status_code},
-                message: {message},
-                error: {error},
+                req_id: {req_id} \n,
+                status_code: {status_code} \n,
+                message: {message} \n,
+                error: {error} \n,
             ",
                 req_id = req_id,
                 status_code = status_code,

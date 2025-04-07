@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Example:
 /// ```
+/// use infisical_rs::infisical::auth_methods::universal_auth::utils::UniversalAuthCredentials;
+///
 ///     let credentials = UniversalAuthCredentials {
 ///         client_id: "".to_string(),
 ///         client_secret: "".to_string(),
@@ -36,8 +38,8 @@ pub struct UniversalAuthCredentials {
 pub struct UniversalAuthAccessTokenData {
     pub access_token: String,
     #[serde(rename(serialize = "access_token_max_ttl", deserialize = "accessTokenMaxTTL"))]
-    pub access_token_max_ttl: u32,
-    pub expires_in: u32,
+    pub access_token_max_ttl: u128,
+    pub expires_in: u128,
     pub token_type: String,
 }
 
@@ -139,10 +141,10 @@ pub struct AccessTokenTrustedIp {
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct IndentityUniversalAuthData {
     #[serde(rename(serialize = "access_token_max_ttl", deserialize = "accessTokenMaxTTL"))]
-    pub access_token_max_ttl: u32,
-    pub access_token_num_uses_limit: u32,
+    pub access_token_max_ttl: u128,
+    pub access_token_num_uses_limit: u128,
     #[serde(rename(serialize = "access_token_ttl", deserialize = "accessTokenTTL"))]
-    pub access_token_ttl: u32,
+    pub access_token_ttl: u128,
     pub access_token_trusted_ips: Vec<AccessTokenTrustedIp>,
     pub client_id: String,
     pub client_secret_trusted_ips: Vec<ClientSecretTrustedIp>,
@@ -154,7 +156,7 @@ pub struct IndentityUniversalAuthData {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-pub struct IndentityUniversalAuth {
+pub struct IdentityUniversalAuth {
     pub identity_universal_auth: SecretBox<IndentityUniversalAuthData>,
 }
 
