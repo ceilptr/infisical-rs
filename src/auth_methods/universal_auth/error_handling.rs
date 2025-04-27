@@ -1,25 +1,8 @@
-use crate::infisical::utils::api_utils::ApiResponse;
-
 // ---------------------------------------------------------------------------------------------------------
 // pub trait UniversalAuthErrorTrait {}
-
+use crate::utils::api_utils::ApiResponse;
 #[derive(thiserror::Error, Debug)]
 pub enum UniversalAuthError {
-    ///
-    #[error(
-        "
-        API Error: {response_status}: {response_error_message} \n\
-        Details: {response_error_details} \n\
-        This could mean a few things: \n\
-            - the client id, client secret, identity id, or version specified was incorrect, \n\
-            - the actual Universal Auth client secret's maximum use limit has been exceeded \n"
-    )]
-    GetHTMLResponseError {
-        response_status: String,
-        response_error_message: String,
-        response_error_details: String,
-    },
-
     ///
     #[error(
         "Could not retrieve an access token with the given credentials: \n\
@@ -35,7 +18,6 @@ pub enum UniversalAuthError {
                     for whatever reason, and the organization needs to be contacted. \n"
     )]
     UniversalAuthLoginError {
-        // credentials: UniversalAuthCredentials,
         client_id: String,
         client_identity_id: String,
         api_version: String,
@@ -54,8 +36,11 @@ pub enum UniversalAuthError {
     NoUniversalAuthApiIdentityIDSpecified,
 
     ///
-    #[error("Invalid Universal Auth API Version Credentials Specified: {version} ")]
-    NoUniversalAuthAPIVersionSpecified { version: String },
+    #[error("Invalid Universal Auth API Version Credentials Specified: {api_version} ")]
+    NoUniversalAuthAPIVersionSpecified {
+        ///usually copied/moved over from the UniversalAuthCredentials struct on login()
+        api_version: String,
+    },
 
     ///
     #[error(
@@ -105,9 +90,18 @@ pub enum UniversalAuthError {
         error: ApiResponse,
     },
 
+    #[error("UniversalAuth::get_client_secret_by_id(): {error}")]
+    GetClientSecretByIDError {
+        api_version: String,
+        error: ApiResponse,
+    },
+
     ///
     #[error("UniversalAuth::create_client_secret: {error}")]
-    CreateClientSecretError { error: serde_json::Error },
+    CreateClientSecretError {
+        api_version: String,
+        error: ApiResponse,
+    },
 
     ///
     #[error("UniversalAuth::list_client_secrets: {error}")]
@@ -156,7 +150,7 @@ pub enum UniversalAuthError {
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
     #[error("{error}")]
-    StdError { error: String },
+    StdError { error: Box<dyn std::error::Error> },
     #[error(transparent)]
     Other { error: anyhow::Error },
 }

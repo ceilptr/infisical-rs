@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
+
+use infisical_rs::utils::api_utils::AppConfig;
 // use std::sync::OnceLock;
 
-use infisical_rs::infisical::utils::api_utils::AppConfig;
 // link to environment variables here
 // pub mod user_test_env;
 pub mod _env;
@@ -21,7 +22,7 @@ pub static INIT_CLOUD_APPCONFIG: LazyLock<AppConfig> = LazyLock::new(|| AppConfi
 pub mod universal_auth_test_utils {
     use std::sync::LazyLock;
 
-    use infisical_rs::infisical::auth_methods::universal_auth::{
+    use infisical_rs::auth_methods::universal_auth::{
         error_handling::UniversalAuthError,
         utils::{UniversalAuthAccessToken, UniversalAuthCredentials},
     };
@@ -65,3 +66,5 @@ pub mod universal_auth_test_utils {
             .await?)
     }
 }
+
+pub mod token_auth_test_utils {}

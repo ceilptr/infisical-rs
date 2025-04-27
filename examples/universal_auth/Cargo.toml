@@ -14,13 +14,7 @@ strum = { version = "0.27.1", features = ["derive", "strum_macros"] }
 thiserror = "2.0.12"
 tokio = { version = "1.44.1", features = ["full"] }
 unescaper = "0.1.5"
+dotenvy = "0.15.7"
 
 [features]
-logging_verbose = []
-logging_quiet = []
-logging_silent = []
-
-reqwest_blocking_client = []
-
-[dev-dependencies]
-dotenvy = "0.15.7"
+login = []

@@ -1,6 +1,8 @@
 use secrecy::{SecretBox, SecretString};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::api_utils::{AccessTokenTrustedIp, ClientSecretTrustedIp};
+
 /// This is, for all intents and purposes, your "username" and "password" for the Universal Auth authentcation method
 /// in Infisical, and your entrypoint to accessing the rest of this module's functionality.
 ///
@@ -121,24 +123,6 @@ pub struct UniversalAuthClientSecret {
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-pub struct ClientSecretTrustedIp {
-    pub ip_address: String,
-    pub prefix: u128,
-    #[serde(rename(serialize = "type", deserialize = "type"))]
-    pub type_: String,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
-pub struct AccessTokenTrustedIp {
-    pub ip_address: String,
-    pub prefix: u128,
-    #[serde(rename(serialize = "type", deserialize = "type"))]
-    pub type_: String,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(rename_all(serialize = "snake_case", deserialize = "camelCase"))]
 pub struct IndentityUniversalAuthData {
     #[serde(rename(serialize = "access_token_max_ttl", deserialize = "accessTokenMaxTTL"))]
     pub access_token_max_ttl: u128,
@@ -166,7 +150,9 @@ pub mod universal_auth_util_functions {
 
     use std::net::IpAddr;
 
-    use crate::infisical::{INFISICAL_DEFAULT_IPV4_ADDRESS, INFISICAL_DEFAULT_IPV6_ADDRESS};
+    use crate::infisical_constants::{
+        INFISICAL_DEFAULT_IPV4_ADDRESS, INFISICAL_DEFAULT_IPV6_ADDRESS,
+    };
 
     pub fn construct_universal_auth_token_endpoint_url(
         // app_config: &AppConfig,

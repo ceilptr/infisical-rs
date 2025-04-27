@@ -1,6 +1,4 @@
-use infisical_rs::infisical::auth_methods::universal_auth::utils::{
-    AccessTokenTrustedIp, ClientSecretTrustedIp,
-};
+use infisical_rs::utils::api_utils::{AccessTokenTrustedIp, ClientSecretTrustedIp};
 
 pub mod universal_auth_tests;
 

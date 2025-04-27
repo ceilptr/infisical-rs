@@ -12,22 +12,15 @@ use reqwest::{
     header::{CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use secrecy::{ExposeSecret, SecretBox, SerializableSecret, zeroize::Zeroize};
+use utils::{universal_auth_util_functions::*, *};
 
-use utils::{
-    universal_auth_util_functions::{
-        default_access_token_trusted_ip_form_data_vectors,
-        default_client_secret_trusted_ip_form_data_vectors,
-    },
-    *,
-};
-
-use crate::infisical::{INFISICAL_DEFAULT_TIME_TO_LIVE, utils::api_utils::ApiResponse};
+use crate::{infisical_constants::*, utils::api_utils::*};
 
 pub mod error_handling;
+pub mod utils;
 
 /// The main entrypoint to the Universal Auth module.
 /// Contains methods to obtain access tokens, modify identities and access token fields, etc.
-pub mod utils;
 
 // ---------------------------------------------------------------------------------------------------------
 
@@ -94,11 +87,8 @@ impl UniversalAuthCredentials {
             .or_else(|e| return Err(UniversalAuthError::ReqwestError(e)))?;
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
-        if response.status().ne(&StatusCode::OK) {
+        if !response.status().is_success() {
             let error_response = response.json::<ApiResponse>().await?;
-
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::UniversalAuthLoginError {
                 client_id: self.client_id.clone(),
@@ -109,9 +99,10 @@ impl UniversalAuthCredentials {
         }
 
         // allows us abit more flexibility in error reporting (or success, really)
-        let bytes = response.bytes().await?;
+        // let bytes = response.bytes().await?;
 
-        let access_token = serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes)?;
+        let access_token = response.json::<UniversalAuthAccessTokenData>().await?;
+        // let access_token = serde_json::from_slice::<UniversalAuthAccessTokenData>(&bytes)?;
         Ok(UniversalAuthAccessToken {
             data: SecretBox::new(Box::new(access_token)),
             version: self.version.clone(),
@@ -277,11 +268,8 @@ impl UniversalAuthAccessToken {
         // );
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
-        if response.status().ne(&StatusCode::OK) {
+        if !response.status().is_success() {
             let error_response = response.json::<ApiResponse>().await?;
-
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::AttachConfigurationError {
                 client_identity_id: identity_to_attach_to.to_string(),
@@ -290,19 +278,12 @@ impl UniversalAuthAccessToken {
             });
         }
 
-        let bytes = response.bytes().await?;
+        // let bytes = response.bytes().await?;
 
         // attempt to deserialize HTTP response into a compatible Rust struct for...
         // rust things where you would need this
 
-        let configured_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
-        println!(
-            "ex: {}",
-            configured_identity
-                .identity_universal_auth
-                .expose_secret()
-                .access_token_max_ttl
-        );
+        let configured_identity = response.json::<IdentityUniversalAuth>().await?;
         Ok(configured_identity)
     }
 
@@ -346,11 +327,8 @@ impl UniversalAuthAccessToken {
         // );
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
-        if response.status().ne(&StatusCode::OK) {
+        if !response.status().is_success() {
             let error_response = response.json::<ApiResponse>().await?;
-
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::RetrieveIdentityError {
                 identity: identity_to_retrieve.to_string(),
@@ -453,11 +431,11 @@ impl UniversalAuthAccessToken {
             .await?;
 
         // if response doesnt return a 200 OK, short circuit and return a ApiResponse
-        if response.status().ne(&StatusCode::OK) {
+        if !response.status().is_success() {
             let error_response = response.json::<ApiResponse>().await?;
 
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
+            // #[cfg(not(feature = "logging_silent"))]
+            // println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::UpdateIdentityError {
                 identity_to_update: identity_to_update.to_string(),
@@ -466,12 +444,8 @@ impl UniversalAuthAccessToken {
             });
         }
 
-        let bytes = response.bytes().await?;
-
-        let updated_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
-
+        let updated_identity = response.json::<IdentityUniversalAuth>().await?;
         Ok(updated_identity)
-        // todo!()
     }
 
     /// revoke()
@@ -506,8 +480,8 @@ impl UniversalAuthAccessToken {
         if response.status().ne(&StatusCode::OK) {
             let error_response = response.json::<ApiResponse>().await?;
 
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
+            // #[cfg(not(feature = "logging_silent"))]
+            // println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::RevokeUniversalAuthConfigurationError {
                 identity_id: identity_to_revoke.to_string(),
@@ -516,9 +490,7 @@ impl UniversalAuthAccessToken {
             });
         }
 
-        let bytes = response.bytes().await?;
-
-        let revoked_identity = serde_json::from_slice::<IdentityUniversalAuth>(&bytes)?;
+        let revoked_identity = response.json::<IdentityUniversalAuth>().await?;
         Ok(revoked_identity)
     }
 
@@ -530,7 +502,7 @@ impl UniversalAuthAccessToken {
         client_secret_description: &str,
         client_secret_num_uses_limit: u64,
         client_secret_time_to_live: u64,
-    ) -> Result<UniversalAuthClientSecret, Box<dyn std::error::Error>> {
+    ) -> Result<UniversalAuthClientSecret, UniversalAuthError> {
         let endpoint_url = self
             .construct_universal_client_secret_url(&host, identity_id, None)
             .await;
@@ -565,23 +537,17 @@ impl UniversalAuthAccessToken {
             .send()
             .await?;
 
-        // print HTTP response for user posterity
-        println!(
-            "Universal Auth create_client_secret() for {} HTTP response: {}",
-            identity_id,
-            response.status().to_string(),
-        );
+        if !response.status().is_success() {
+            let error_response = response.json::<ApiResponse>().await?;
 
-        let bytes = response.bytes().await?;
-
-        println!("create_client_secret bytes: {bytes:#?}");
-        match serde_json::from_slice::<UniversalAuthClientSecret>(&bytes) {
-            Ok(client_secret) => Ok(client_secret),
-            Err(e) => Err(Box::new(UniversalAuthError::CreateClientSecretError {
-                error: e,
-            })),
+            return Err(UniversalAuthError::CreateClientSecretError {
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
-        // todo!("implement UniversalAuth::create_client_secret()")
+
+        let new_client_secret = response.json::<UniversalAuthClientSecret>().await?;
+        Ok(new_client_secret)
     }
 
     pub async fn revoke_client_secret(
@@ -590,7 +556,7 @@ impl UniversalAuthAccessToken {
         client: &reqwest::Client,
         identity_id: &str,
         client_secret_to_revoke: &str,
-    ) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    ) -> Result<UniversalAuthClientSecret, UniversalAuthError> {
         let endpoint_url = format!(
             "{}/revoke",
             self.construct_universal_client_secret_url(
@@ -607,15 +573,19 @@ impl UniversalAuthAccessToken {
             .post(&endpoint_url)
             .bearer_auth(&self.access_token())
             .send()
-            .await?;
+            .await
+            .or_else(|e| return Err(UniversalAuthError::ReqwestError(e)))?;
 
-        let bytes = response.bytes().await?;
-        println!("revoke_client_secret bytes: {bytes:#?}");
-
-        match serde_json::from_slice::<serde_json::Value>(&bytes) {
-            Ok(revoked_client_secret) => Ok(revoked_client_secret),
-            Err(e) => Err(Box::new(e)),
+        if !response.status().is_success() {
+            let error_response = response.json::<ApiResponse>().await?;
+            return Err(UniversalAuthError::RevokeClientSecretError {
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
+
+        let revoked_client_secret = response.json::<UniversalAuthClientSecret>().await?;
+        Ok(revoked_client_secret)
     }
 
     pub async fn get_client_secret_by_id(
@@ -624,7 +594,7 @@ impl UniversalAuthAccessToken {
         client: &reqwest::Client,
         identity_id: &str,
         client_secret_id: &str,
-    ) -> Result<UniversalAuthClientSecretData, Box<dyn std::error::Error>> {
+    ) -> Result<UniversalAuthClientSecret, UniversalAuthError> {
         let endpoint_url = format!(
             "{}/revoke",
             self.construct_universal_client_secret_url(&host, identity_id, Some(client_secret_id),)
@@ -637,13 +607,24 @@ impl UniversalAuthAccessToken {
             .send()
             .await?;
 
-        let bytes = response.bytes().await?;
-        println!("get_client_secret_by_id bytes: {bytes:#?}");
+        if !response.status().is_success() {
+            let error_response = response.json::<ApiResponse>().await?;
 
-        match serde_json::from_slice::<UniversalAuthClientSecretData>(&bytes) {
-            Ok(client_secret) => Ok(client_secret),
-            Err(e) => Err(Box::new(e)),
+            return Err(UniversalAuthError::GetClientSecretByIDError {
+                api_version: self.version.clone(),
+                error: error_response,
+            });
         }
+
+        // let bytes = response.bytes().await?;
+
+        // match serde_json::from_slice::<UniversalAuthClientSecretData>(&bytes) {
+        //     Ok(client_secret) => Ok(client_secret),
+        //     Err(e) => Err(Box::new(e)),
+        // }
+
+        let client_secret = response.json::<UniversalAuthClientSecret>().await?;
+        Ok(client_secret)
         // todo!()
     }
 
@@ -678,9 +659,6 @@ impl UniversalAuthAccessToken {
 
         if response.status().ne(&StatusCode::OK) {
             let error_response = response.json::<ApiResponse>().await?;
-
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::RenewAccessTokenError {
                 api_version: self.version.clone(),
@@ -729,9 +707,6 @@ impl UniversalAuthAccessToken {
 
         if response.status().ne(&StatusCode::OK) {
             let error_response = response.json::<ApiResponse>().await?;
-
-            #[cfg(not(feature = "logging_silent"))]
-            println!("error_response: {}", error_response.to_string());
 
             return Err(UniversalAuthError::RevokeAccessTokenError {
                 api_version: self.version.clone(),
@@ -923,7 +898,7 @@ impl Display for UniversalAuthClientSecret {
         write!(
             f,
             "
-                client_secret: ********** \n\
+    client_secret: ********** \n\
     client secret num uses: {} \n
     client secret num uses limit: {} \n
     client secret prefix: {} \n
